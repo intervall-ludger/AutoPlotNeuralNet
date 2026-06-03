@@ -1,5 +1,8 @@
 # AutoPlotNeuralNet
 
+> **Still in progress** — the diagram design is functional but still being
+> refined; expect layout and styling to keep improving.
+
 Config-driven TikZ diagrams of neural networks. Write a small YAML file, get a
 `.tex` / PDF / PNG of your architecture — no manual TikZ.
 
@@ -35,6 +38,9 @@ Run `uv run apnn render src/apnn/templates/<name>.yaml -o out/<name> --to png`.
 
 ### Gemma — decoder-only transformer (block level)
 ![Gemma](docs/gallery/gemma.png)
+
+### FCN-8s — fully convolutional, skip-stream fusion
+![FCN-8s](docs/gallery/fcn8.png)
 
 ## Requirements
 
@@ -82,6 +88,8 @@ sizing:                   # optional, all fields default (see below)
   min_width: 1.0
   max_width: 8.0
 legend: true
+font_scale: 1.0           # scale fonts so they read consistently across diagrams
+                          # (wide diagrams > 1.0, narrow ones < 1.0; ~ width / 1150pt)
 layers:
   - {type: input,   name: in,  channels: 784, caption: Input}
   - {type: fc,      name: h1,  channels: 256, caption: Dense}
@@ -92,16 +100,21 @@ connections: []           # optional manual edges: [{from, to, style}]
 ```
 
 Available layer types: `input`, `output`, `fc`, `softmax`, `conv`, `conv_block`,
-`pool`, `upsample`, `block` (a generic labelled box for custom / 2D diagrams).
+`pool`, `upsample`, `deconv` (up-convolution), `sum` (element-wise sum, drawn as
+a `+` ball), `block` (a generic labelled box for custom / 2D diagrams).
 Layouts:
 - `sequential` — FFN / CNN classifier (single row)
+- `flow` — like `sequential`, but pooling is fused flush onto its conv (FCN / VGG)
 - `encoder_decoder` — UNet, with automatic skip connections per resolution level
 - `pyramid` — RetinaNet / FPN; place nodes in columns via the `col` field
   (col 0 = backbone, col 1 = feature pyramid, col 2 = subnets) and levels are
   stacked by `resolution`
 
+Skip connections accept a `skip_pos` (arc height), e.g.
+`{from: pool4, to: elt1, style: skip, skip_pos: 2.5}`.
+
 Bundled templates: `ffn`, `cnn`, `alexnet`, `resnet`, `autoencoder`, `unet`,
-`retinanet`, `gemma` (see `apnn list-templates`, and the gallery above).
+`retinanet`, `gemma`, `fcn8` (see `apnn list-templates`, and the gallery above).
 
 Note: in xcolor `rgb:` color expressions, avoid the named color `orange`
 (it renders incorrectly) — mix `red` + `yellow` instead.
@@ -131,3 +144,7 @@ render(diagram, "examples/ffn", fmt="png")
 Logging uses the standard `logging` module; pass `-v` to the CLI for `DEBUG`
 output, otherwise it logs at `INFO`. When using the Python API directly, call
 `logging.basicConfig()` yourself to see log output.
+
+## Credits
+
+Inspired by [PlotNeuralNet](https://github.com/HarisIqbal88/PlotNeuralNet).

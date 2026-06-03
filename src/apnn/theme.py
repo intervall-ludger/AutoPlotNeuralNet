@@ -7,6 +7,7 @@ class Theme:
     conv_band: str = r"rgb:yellow,5;red,5;white,5"
     pool: str = r"rgb:red,1;black,0.3"
     upsample: str = r"rgb:blue,2;green,1;black,0.3"
+    deconv: str = r"rgb:blue,5;green,2.5;white,5"
     fc: str = r"rgb:blue,5;red,2.5;white,5"
     fc_band: str = r"rgb:blue,5;red,5;white,4"
     softmax: str = r"rgb:magenta,5;black,7"
@@ -35,6 +36,7 @@ THEMES: dict[str, Theme] = {
         conv_band=r"rgb:black,3;white,7",
         pool=r"rgb:black,4;white,6",
         upsample=r"rgb:black,1;white,9",
+        deconv=r"rgb:black,2;white,8",
         fc=r"rgb:black,3;white,7",
         fc_band=r"rgb:black,4;white,6",
         softmax=r"rgb:black,5;white,5",

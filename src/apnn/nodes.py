@@ -8,7 +8,7 @@ from .tikz import emit
 @dataclass
 class Node:
     name: str
-    channels: int = 1
+    channels: int | None = 1
     resolution: int | tuple[int, ...] = 1
     caption: str = " "
     color: str | None = None
@@ -47,6 +47,9 @@ class Node:
     def _opacity(self) -> float:
         return self.opacity if self.opacity is not None else self.DEFAULT_OPACITY
 
+    def _xlabel(self) -> str:
+        return "" if self.channels is None else str(self.channels)
+
     def uses_baseline_caption(self) -> bool:
         return not self.SELF_LABEL
 
@@ -63,7 +66,7 @@ class Input(Node):
             name=self.name, fill=self.color or theme.input_layer,
             offset=self._offset, to=self._to,
             width=self._width, height=self._height, depth=self._depth,
-            opacity=self._opacity(), xlabel=self.channels, zlabel=self._res_label(),
+            opacity=self._opacity(), xlabel=self._xlabel(), zlabel=self._res_label(),
             caption=self.caption,
         )
 
@@ -77,7 +80,7 @@ class Output(Node):
             name=self.name, fill=self.color or theme.output_layer,
             offset=self._offset, to=self._to,
             width=self._width, height=self._height, depth=self._depth,
-            opacity=self._opacity(), xlabel=self.channels, zlabel=self._res_label(),
+            opacity=self._opacity(), xlabel=self._xlabel(), zlabel=self._res_label(),
             caption=self.caption,
         )
 
@@ -93,7 +96,7 @@ class FC(Node):
             bandfill=self.band_color or theme.fc_band,
             offset=self._offset, to=self._to,
             width=half, bandwidth=half, height=self._height, depth=self._depth,
-            opacity=self._opacity(), xlabel=self.channels, caption=self.caption,
+            opacity=self._opacity(), xlabel=self._xlabel(), caption=self.caption,
         )
 
     def legend_item(self, theme: Theme) -> dict:
@@ -110,7 +113,7 @@ class Softmax(Node):
             name=self.name, fill=self.color or theme.softmax,
             offset=self._offset, to=self._to,
             width=self._width, height=self._height, depth=self._depth,
-            opacity=self._opacity(), xlabel=self.channels, caption=self.caption,
+            opacity=self._opacity(), xlabel=self._xlabel(), caption=self.caption,
         )
 
     def legend_item(self, theme: Theme) -> dict:
@@ -125,7 +128,7 @@ class Conv(Node):
             bandfill=self.band_color or theme.conv_band,
             offset=self._offset, to=self._to,
             width=self._width, bandwidth=self._width, height=self._height, depth=self._depth,
-            opacity=self._opacity(), xlabel=self.channels, zlabel=self._res_label(),
+            opacity=self._opacity(), xlabel=self._xlabel(), zlabel=self._res_label(),
             caption=self.caption,
         )
 
@@ -165,6 +168,44 @@ class Block(Node):
 
     def legend_item(self, theme: Theme) -> dict:
         return {"fill": self.color or theme.conv, "label": self.caption.strip() or "Block"}
+
+
+class Deconv(Node):
+    """Up-convolution / transposed conv: a plain box in the decoder color."""
+
+    def tikz(self, theme: Theme) -> str:
+        return emit.to_box(
+            name=self.name, fill=self.color or theme.deconv,
+            offset=self._offset, to=self._to,
+            width=self._width, height=self._height, depth=self._depth,
+            opacity=self._opacity(), xlabel=self._xlabel(), zlabel=self._res_label(),
+            caption=self.caption,
+        )
+
+    def legend_item(self, theme: Theme) -> dict:
+        return {"fill": self.color or theme.deconv, "label": "Up-conv"}
+
+
+class Sum(Node):
+    """Element-wise sum, drawn as a shaded ball with a ``+`` logo."""
+
+    SELF_LABEL = True  # the ball carries its own logo, no baseline caption
+    DEFAULT_OPACITY = 0.85
+    FIXED_WIDTH = 1.0  # the ball ignores width; this just keeps the sizing pass happy
+    _SCALE = 0.2  # matches Box.sty so the ball matches box heights
+
+    def _radius(self) -> float:
+        return round(self._height * self._SCALE / 2, 3)
+
+    def tikz(self, theme: Theme) -> str:
+        return emit.to_ball(
+            name=self.name, fill=self.color or theme.sum_op,
+            offset=self._offset, to=self._to,
+            radius=self._radius(), logo=r"$+$", opacity=self._opacity(),
+        )
+
+    def legend_item(self, theme: Theme) -> dict:
+        return {"fill": self.color or theme.sum_op, "label": "Element-wise sum"}
 
 
 class Pool(Node):
@@ -210,5 +251,7 @@ NODE_TYPES: dict[str, type[Node]] = {
     "conv_block": ConvBlock,
     "pool": Pool,
     "upsample": Upsample,
+    "deconv": Deconv,
+    "sum": Sum,
     "block": Block,
 }

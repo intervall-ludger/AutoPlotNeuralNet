@@ -1,10 +1,11 @@
 from .base import Connection, Layout
 from .encoder_decoder import EncoderDecoderLayout
 from .pyramid import PyramidLayout
-from .sequential import SequentialLayout
+from .sequential import FlowLayout, SequentialLayout
 
 LAYOUTS: dict[str, type[Layout]] = {
     "sequential": SequentialLayout,
+    "flow": FlowLayout,
     "encoder_decoder": EncoderDecoderLayout,
     "pyramid": PyramidLayout,
 }

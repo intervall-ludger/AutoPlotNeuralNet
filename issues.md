@@ -16,6 +16,13 @@ milestone where they become relevant.
   around there by shortening labels. A real fix would widen the gap when the
   combined half-caption widths of two neighbours exceed their box spacing.
 
+## Font scaling could be automatic
+- `font_scale` is currently set per template by hand (roughly diagram width /
+  1150pt) so fonts read consistently when the gallery images are scaled to a
+  common width. A two-pass render (compile once, measure the PDF width, then
+  recompile with a derived scale) could set this automatically and drop the
+  per-template magic numbers.
+
 ## Minor / style (do alongside the related feature)
 - `layout/base.Layout.compute` raises `NotImplementedError`; could become a
   real `abc.ABC` + `@abstractmethod` once there are multiple external layouts.

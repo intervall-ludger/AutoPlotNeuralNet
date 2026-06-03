@@ -33,7 +33,7 @@ class NodeConfig(BaseModel):
 
     type: str
     name: str
-    channels: int = 1
+    channels: int | None = None
     resolution: int | list[int] = 1
     caption: str = " "
     color: str | None = None
@@ -65,6 +65,7 @@ class ConnectionConfig(BaseModel):
     from_: str = Field(alias="from")
     to: str
     style: Literal["solid", "dashed", "skip"] = "solid"
+    skip_pos: float = 1.5  # arc height for skip connections
 
     _v_refs = field_validator("from_", "to")(_check_identifier)
 
@@ -78,6 +79,7 @@ class DiagramConfig(BaseModel):
     colors: dict[str, str] = Field(default_factory=dict)
     sizing: SizingConfig = Field(default_factory=SizingConfig)
     legend: bool = True
+    font_scale: float = 1.0  # scale all fonts; bump for very wide diagrams
     layers: list[NodeConfig]
     connections: list[ConnectionConfig] = Field(default_factory=list)
     sections: list[SectionConfig] = Field(default_factory=list)

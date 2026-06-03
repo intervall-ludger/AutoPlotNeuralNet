@@ -57,6 +57,23 @@ def to_banded_box(name: str, fill: str, bandfill: str, offset: str = "(0,0,0)",
     )
 
 
+def to_ball(name: str, fill: str, offset: str = "(0,0,0)", to: str = "(0,0,0)",
+            radius: float = 0.5, logo: str = "$+$", opacity: float = 0.85) -> str:
+    fill = _wrap_color(fill)
+    return (
+        r"\pic[shift={" + offset + "}] at " + to + "\n"
+        r"    {Ball={" "\n"
+        r"        name=" + name + ",\n"
+        r"        fill=" + fill + ",\n"
+        r"        opacity=" + str(opacity) + ",\n"
+        r"        radius=" + f"{radius:.3f}" + ",\n"
+        # logo is author-provided LaTeX (e.g. math), not escaped
+        r"        logo={" + logo + "}\n"
+        r"        }" "\n"
+        r"    };" "\n"
+    )
+
+
 def to_connection(from_name: str, to_name: str) -> str:
     return (
         r"\draw [connection] (" + from_name + "-east)"

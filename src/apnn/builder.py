@@ -17,7 +17,7 @@ _BRACKET_YSHIFT = -88    # pt below the lowest box for section brackets (under c
 class Diagram:
     def __init__(self, name: str = "diagram", layout: str | Layout = "sequential",
                  theme: Theme | None = None, sizing: SizingConfig | None = None,
-                 legend: bool = True):
+                 legend: bool = True, font_scale: float = 1.0):
         self.name = name
         self.nodes: list[Node] = []
         self.sections: list[tuple[str, str, str]] = []
@@ -25,6 +25,7 @@ class Diagram:
         self._theme = theme or Theme()
         self._sizing = sizing or SizingConfig()
         self.legend = legend
+        self.font_scale = font_scale
         if isinstance(layout, str):
             try:
                 self._layout: Layout = LAYOUTS[layout]()
@@ -43,15 +44,17 @@ class Diagram:
         self.sections.append((from_name, to_name, label))
         return self
 
-    def connect(self, from_name: str, to_name: str, style: str = "solid") -> "Diagram":
-        self.manual_connections.append(Connection(from_name, to_name, style=style))
+    def connect(self, from_name: str, to_name: str, style: str = "solid",
+                skip_pos: float = 1.5) -> "Diagram":
+        self.manual_connections.append(
+            Connection(from_name, to_name, style=style, skip_pos=skip_pos))
         return self
 
     @classmethod
     def from_config(cls, cfg: DiagramConfig) -> "Diagram":
         theme = resolve_theme(cfg.theme, cfg.colors)
         diagram = cls(name=cfg.name, layout=cfg.layout, theme=theme,
-                      sizing=cfg.sizing, legend=cfg.legend)
+                      sizing=cfg.sizing, legend=cfg.legend, font_scale=cfg.font_scale)
         for layer_cfg in cfg.layers:
             try:
                 node_cls = NODE_TYPES[layer_cfg.type]
@@ -72,29 +75,40 @@ class Diagram:
         for section in cfg.sections:
             diagram.section(section.from_, section.to, section.label)
         for conn in cfg.connections:
-            diagram.connect(conn.from_, conn.to, conn.style)
+            diagram.connect(conn.from_, conn.to, conn.style, conn.skip_pos)
         return diagram
 
     def _apply_sizing(self) -> None:
+        # derived values are computed lazily so a node with explicit geometry
+        # never needs a channel/resolution it does not carry
         cfg = self._sizing
         for node in self.nodes:
-            if cfg.mode == "units":
-                height = units_to_height(node.channels, cfg)
-                width = node.FIXED_WIDTH if node.FIXED_WIDTH is not None else cfg.unit_thickness
-                depth = cfg.unit_thickness
-            elif cfg.mode == "plate":
-                # flat feature map: width=depth span the resolution, height is the
-                # (thin) channel thickness
-                spatial = resolution_to_size(node.resolution, cfg)
-                width = depth = spatial
-                height = channels_to_width(node.channels, cfg)
-            else:
-                height = depth = resolution_to_size(node.resolution, cfg)
-                width = (node.FIXED_WIDTH if node.FIXED_WIDTH is not None
-                         else channels_to_width(node.channels, cfg))
-            node._height = node.height if node.height is not None else height
-            node._depth = node.depth if node.depth is not None else depth
-            node._width = node.width if node.width is not None else width
+            node._height = node.height if node.height is not None else self._sized_height(node, cfg)
+            node._depth = node.depth if node.depth is not None else self._sized_depth(node, cfg)
+            node._width = node.width if node.width is not None else self._sized_width(node, cfg)
+
+    @staticmethod
+    def _sized_height(node: Node, cfg: SizingConfig) -> float:
+        if cfg.mode == "units":
+            return units_to_height(node.channels, cfg)
+        if cfg.mode == "plate":
+            return channels_to_width(node.channels, cfg)
+        return resolution_to_size(node.resolution, cfg)
+
+    @staticmethod
+    def _sized_depth(node: Node, cfg: SizingConfig) -> float:
+        if cfg.mode == "units":
+            return cfg.unit_thickness
+        return resolution_to_size(node.resolution, cfg)
+
+    @staticmethod
+    def _sized_width(node: Node, cfg: SizingConfig) -> float:
+        if cfg.mode == "units":
+            return node.FIXED_WIDTH if node.FIXED_WIDTH is not None else cfg.unit_thickness
+        if cfg.mode == "plate":
+            return resolution_to_size(node.resolution, cfg)
+        return (node.FIXED_WIDTH if node.FIXED_WIDTH is not None
+                else channels_to_width(node.channels, cfg))
 
     def _lowest_node(self) -> str | None:
         # tallest box reaches lowest (boxes are centred on the flow line)
@@ -118,7 +132,8 @@ class Diagram:
         self._apply_sizing()
         auto_connections = self._layout.compute(self.nodes)
 
-        parts = [document.to_head(styles_path), self._theme.colors_tex(), document.to_begin()]
+        parts = [document.to_head(styles_path, self.font_scale),
+                 self._theme.colors_tex(), document.to_begin()]
         for node in self.nodes:
             parts.append(node.tikz(self._theme))
         for conn in auto_connections:

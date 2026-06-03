@@ -9,6 +9,8 @@ class SequentialLayout(Layout):
 
     spacing: float = 2.0
     pool_spacing: float = 0.7
+    # fuse narrow nodes (pooling) flush onto the preceding box, with no edge
+    flush_narrow: bool = False
 
     def compute(self, nodes: list[Node]) -> list[Connection]:
         connections: list[Connection] = []
@@ -17,6 +19,9 @@ class SequentialLayout(Layout):
             if prev is None:
                 node._offset = "(0,0,0)"
                 node._to = "(0,0,0)"
+            elif self.flush_narrow and node.is_narrow:
+                node._offset = "(0,0,0)"
+                node._to = f"({prev.name}-east)"
             else:
                 base = self.pool_spacing if node.is_narrow else self.spacing
                 gap = clearing_gap(prev, base)
@@ -25,3 +30,9 @@ class SequentialLayout(Layout):
                 connections.append(Connection(prev.name, node.name))
             prev = node
         return connections
+
+
+class FlowLayout(SequentialLayout):
+    """Sequential layout where pooling is fused flush onto its conv (FCN/VGG)."""
+
+    flush_narrow = True

@@ -1,0 +1,37 @@
+name: fcn8
+layout: flow
+theme: default
+legend: true
+font_scale: 1.55  # this diagram is wide, so scale fonts up to match the others
+
+# FCN-8s: VGG encoder, fc-as-conv, three up-conv stages fused with pool4/pool3
+# skip streams via element-wise sums (after PlotNeuralNet's fcn8 example).
+
+layers:
+  - {type: input, name: img,   caption: image,        channels: 3,    height: 40, width: 1.5, depth: 40}
+
+  - {type: conv,  name: conv1, caption: conv1,        channels: 64,   height: 40, width: 4,  depth: 40}
+  - {type: pool,  name: pool1,                        height: 35, width: 1, depth: 35}
+  - {type: conv,  name: conv2, caption: conv2,        channels: 128,  height: 35, width: 5,  depth: 35}
+  - {type: pool,  name: pool2,                        height: 30, width: 1, depth: 30}
+  - {type: conv,  name: conv3, caption: conv3,        channels: 256,  height: 30, width: 6,  depth: 30}
+  - {type: pool,  name: pool3,                        height: 23, width: 1, depth: 23}
+  - {type: conv,  name: conv4, caption: conv4,        channels: 512,  height: 23, width: 8,  depth: 23}
+  - {type: pool,  name: pool4,                        height: 15, width: 1, depth: 15}
+  - {type: conv,  name: conv5, caption: conv5,        channels: 512,  height: 15, width: 8,  depth: 15}
+  - {type: pool,  name: pool5,                        height: 10, width: 1, depth: 10}
+
+  - {type: conv,  name: fc67,  caption: "fc to conv",  channels: 4096, height: 10, width: 11, depth: 10}
+  - {type: conv,  name: score, caption: score,        channels: 21,   height: 10, width: 2,  depth: 10}
+
+  - {type: deconv, name: up32, caption: "2x up",       height: 15, width: 2,  depth: 15}
+  - {type: sum,    name: elt1,                         height: 16, depth: 6}
+  - {type: deconv, name: up16, caption: "2x up",       height: 23, width: 2,  depth: 23}
+  - {type: sum,    name: elt2,                         height: 16, depth: 6}
+  - {type: deconv, name: up8,  caption: "8x up",       height: 40, width: 2,  depth: 40}
+  - {type: softmax, name: softmax, caption: softmax,   height: 40, width: 2,  depth: 40}
+
+# skip streams fuse pool4 into the first sum, pool3 into the second
+connections:
+  - {from: pool4, to: elt1, style: skip, skip_pos: 2.5}
+  - {from: pool3, to: elt2, style: skip, skip_pos: 4.5}

@@ -1,6 +1,11 @@
-def to_head(styles_path: str) -> str:
+def to_head(styles_path: str, font_scale: float = 1.0) -> str:
     if not styles_path.endswith("/"):
         styles_path += "/"
+
+    def font(size: float) -> str:
+        s = size * font_scale
+        return r"{\fontsize{" + f"{s:.1f}pt}}{{{s * 1.2:.1f}pt}}" + r"\selectfont}"
+
     return (
         r"\documentclass[border=8pt, multi, tikz]{standalone}" "\n"
         r"\usepackage{import}" "\n"
@@ -9,9 +14,9 @@ def to_head(styles_path: str) -> str:
         r"\usetikzlibrary{3d}" "\n"
         r"\usetikzlibrary{calc}" "\n"
         r"\usetikzlibrary{fit,backgrounds}" "\n"
-        r"\newcommand{\fntlg}{\fontsize{32pt}{38pt}\selectfont}" "\n"
-        r"\newcommand{\fntmd}{\fontsize{25pt}{30pt}\selectfont}" "\n"
-        r"\newcommand{\fntsm}{\fontsize{20pt}{24pt}\selectfont}" "\n"
+        r"\newcommand{\fntlg}" + font(32) + "\n"
+        r"\newcommand{\fntmd}" + font(25) + "\n"
+        r"\newcommand{\fntsm}" + font(20) + "\n"
     )
 
 
