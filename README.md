@@ -33,6 +33,9 @@ Run `uv run apnn render src/apnn/templates/<name>.yaml -o out/<name> --to png`.
 ### RetinaNet / FPN — stacked feature-map pyramid
 ![RetinaNet](docs/gallery/retinanet.png)
 
+### Gemma — decoder-only transformer (block level)
+![Gemma](docs/gallery/gemma.png)
+
 ## Requirements
 
 - Python managed via [`uv`](https://docs.astral.sh/uv/)
@@ -98,7 +101,7 @@ Layouts:
   stacked by `resolution`
 
 Bundled templates: `ffn`, `cnn`, `alexnet`, `resnet`, `autoencoder`, `unet`,
-`retinanet` (see `apnn list-templates`, and the gallery above).
+`retinanet`, `gemma` (see `apnn list-templates`, and the gallery above).
 
 Note: in xcolor `rgb:` color expressions, avoid the named color `orange`
 (it renders incorrectly) — mix `red` + `yellow` instead.

@@ -9,6 +9,13 @@ milestone where they become relevant.
   `skip_edge`) and emit a `\def\copyedgecolor{...}` once skip connections are
   actually used by the encoder/decoder layout.
 
+## Layout — caption-aware spacing
+- Sequential spacing is based on box width + gap, not on the caption width.
+  Narrow boxes with wide captions (e.g. a thin `Norm` block next to a `Head`)
+  can overlap their baseline captions. Surfaced by the `gemma` template, worked
+  around there by shortening labels. A real fix would widen the gap when the
+  combined half-caption widths of two neighbours exceed their box spacing.
+
 ## Minor / style (do alongside the related feature)
 - `layout/base.Layout.compute` raises `NotImplementedError`; could become a
   real `abc.ABC` + `@abstractmethod` once there are multiple external layouts.

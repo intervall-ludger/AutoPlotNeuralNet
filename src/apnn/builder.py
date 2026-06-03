@@ -130,7 +130,7 @@ class Diagram:
         baseline = self._lowest_node()
         if baseline:
             for node in self.nodes:
-                if not node.SELF_LABEL and node.caption.strip():
+                if node.uses_baseline_caption() and node.caption.strip():
                     parts.append(emit.to_caption(node.name, baseline, node.caption,
                                                  drop=_CAPTION_DROP))
 

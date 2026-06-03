@@ -47,6 +47,9 @@ class Node:
     def _opacity(self) -> float:
         return self.opacity if self.opacity is not None else self.DEFAULT_OPACITY
 
+    def uses_baseline_caption(self) -> bool:
+        return not self.SELF_LABEL
+
     def tikz(self, theme: Theme) -> str:
         raise NotImplementedError
 
@@ -140,6 +143,10 @@ class Block(Node):
 
     SELF_LABEL = True
 
+    def uses_baseline_caption(self) -> bool:
+        # "below" labels defer to the shared caption baseline; others are self-drawn
+        return self.label_pos == "below"
+
     def tikz(self, theme: Theme) -> str:
         out = emit.to_box(
             name=self.name, fill=self.color or theme.conv,
@@ -147,12 +154,10 @@ class Block(Node):
             width=self._width, height=self._height, depth=self._depth,
             opacity=self._opacity(), xlabel="", caption=" ",
         )
-        if self.caption.strip():
+        if self.caption.strip() and self.label_pos != "below":
             label = escape_text(self.caption)
             if self.label_pos == "right":
                 spec = r"[anchor=west, font=\fntsm] at ([xshift=4pt]" + self.name + "-east)"
-            elif self.label_pos == "below":
-                spec = r"[anchor=north west, font=\fntsm] at (" + self.name + "-southeast)"
             else:  # centred on the plate; all plates of a column share this x
                 spec = r"[font=\fntsm] at (" + self.name + "-anchor)"
             out += r"\node" + spec + " {" + label + "};" "\n"

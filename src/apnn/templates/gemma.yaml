@@ -1,0 +1,31 @@
+name: gemma
+layout: sequential
+theme: default
+legend: true
+
+# block-level decoder-only transformer (Gemma family: RMSNorm, GQA+RoPE, GeGLU)
+sizing:
+  mode: spatial
+  ref_resolution: 1
+  ref_size: 24
+  min_size: 24
+  ref_channels: 64
+  ref_width: 2
+  max_width: 2
+
+layers:
+  - {type: block, name: embed, caption: Embed, label_pos: below, height: 24, width: 2.4, depth: 8, color: "rgb:magenta,2;blue,1;white,8"}
+  - {type: block, name: ln1,   caption: Norm,    label_pos: below, height: 24, width: 1.2, depth: 8, color: "rgb:black,2;white,8"}
+  - {type: block, name: attn,  caption: Attn, label_pos: below, height: 24, width: 3.2, depth: 8, color: "rgb:blue,4;cyan,1;white,4"}
+  - {type: block, name: ln2,   caption: Norm,    label_pos: below, height: 24, width: 1.2, depth: 8, color: "rgb:black,2;white,8"}
+  - {type: block, name: mlp,   caption: MLP, label_pos: below, height: 24, width: 3.2, depth: 8, color: "rgb:green,3;blue,1;white,6"}
+  - {type: block, name: normf, caption: Norm,    label_pos: below, height: 24, width: 1.2, depth: 8, color: "rgb:black,2;white,8"}
+  - {type: softmax, name: head, caption: "Head", channels: 256000, height: 24, depth: 8, width: 2.4}
+
+# residual connections around the attention and MLP sub-layers
+connections:
+  - {from: embed, to: attn, style: skip}
+  - {from: attn,  to: mlp,  style: skip}
+
+sections:
+  - {from: ln1, to: mlp, label: "Decoder layer  x N"}
