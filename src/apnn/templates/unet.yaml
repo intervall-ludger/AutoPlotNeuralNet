@@ -2,6 +2,7 @@ name: unet
 layout: encoder_decoder
 theme: default
 legend: true
+font_scale: 1.6   # wide diagram: scale fonts up to match the others
 
 sizing:
   mode: spatial

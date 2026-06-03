@@ -2,6 +2,7 @@ name: gemma
 layout: sequential
 theme: default
 legend: true
+font_scale: 0.65
 
 # block-level decoder-only transformer (Gemma family: RMSNorm, GQA+RoPE, GeGLU)
 sizing:

@@ -2,6 +2,7 @@ name: ffn
 layout: sequential
 theme: default
 legend: true
+font_scale: 0.7   # narrow diagram: scale fonts down to match the others
 
 # FFN: neuron count drives box height (a thin-plate funnel)
 sizing:
