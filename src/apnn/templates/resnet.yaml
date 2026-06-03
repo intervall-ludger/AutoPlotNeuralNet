@@ -1,0 +1,34 @@
+name: resnet
+layout: sequential
+theme: default
+legend: true
+
+sizing:
+  mode: spatial
+  ref_resolution: 224
+  ref_size: 34
+  min_size: 5
+  ref_channels: 64
+  ref_width: 2.2
+  min_width: 1.2
+  max_width: 8.0
+
+layers:
+  - {type: input,      name: img,  channels: 3,   resolution: 224, caption: Image}
+  - {type: conv,       name: stem, channels: 64,  resolution: 112, caption: 7x7}
+  - {type: pool,       name: p0,   channels: 64,  resolution: 56}
+  - {type: conv_block, name: r1a,  channels: 64,  resolution: 56}
+  - {type: conv_block, name: r1b,  channels: 64,  resolution: 56}
+  - {type: conv_block, name: r2a,  channels: 128, resolution: 28}
+  - {type: conv_block, name: r2b,  channels: 128, resolution: 28}
+  - {type: conv_block, name: r3a,  channels: 256, resolution: 14}
+  - {type: conv_block, name: r3b,  channels: 256, resolution: 14}
+  - {type: pool,       name: gap,  channels: 256, resolution: 7,  caption: GAP}
+  - {type: fc,         name: fc,   channels: 1000, caption: FC, height: 26, width: 2, depth: 2}
+  - {type: softmax,    name: out,  channels: 1000, caption: Softmax, height: 26, width: 1.6, depth: 2}
+
+# residual skip connections
+connections:
+  - {from: r1a, to: r1b, style: skip}
+  - {from: r2a, to: r2b, style: skip}
+  - {from: r3a, to: r3b, style: skip}

@@ -1,0 +1,32 @@
+name: retinanet
+layout: pyramid
+theme: default
+legend: false
+
+# plate sizing: flat feature maps, area from resolution, thin thickness from channels
+sizing:
+  mode: plate
+  ref_resolution: 128
+  ref_size: 18
+  min_size: 1.2
+  ref_channels: 512
+  ref_width: 1.2
+  min_width: 0.7
+  max_width: 2.0
+
+layers:
+  # backbone (col 0), bottom (large) -> top (small)
+  - {type: block, name: c2, col: 0, channels: 256,  resolution: 128, caption: C2, color: "rgb:yellow,6;red,3;white,6"}
+  - {type: block, name: c3, col: 0, channels: 512,  resolution: 64,  caption: C3, color: "rgb:yellow,6;red,3;white,6"}
+  - {type: block, name: c4, col: 0, channels: 1024, resolution: 32,  caption: C4, color: "rgb:yellow,6;red,3;white,6"}
+  - {type: block, name: c5, col: 0, channels: 2048, resolution: 16,  caption: C5, color: "rgb:yellow,6;red,3;white,6"}
+  # feature pyramid (col 1), 256 channels each; P6 is an extra top level
+  - {type: block, name: p2, col: 1, channels: 256, resolution: 128, caption: P2, color: "rgb:red,6;yellow,4;white,4"}
+  - {type: block, name: p3, col: 1, channels: 256, resolution: 64,  caption: P3, color: "rgb:red,6;yellow,4;white,4"}
+  - {type: block, name: p4, col: 1, channels: 256, resolution: 32,  caption: P4, color: "rgb:red,6;yellow,4;white,4"}
+  - {type: block, name: p5, col: 1, channels: 256, resolution: 16,  caption: P5, color: "rgb:red,6;yellow,4;white,4"}
+  # detection subnets (col 2), one per pyramid level
+  - {type: block, name: s2, col: 2, resolution: 128, caption: subnet, label_pos: right, color: "rgb:magenta,3;blue,2;white,5", width: 1.4, height: 3, depth: 3}
+  - {type: block, name: s3, col: 2, resolution: 64,  caption: subnet, label_pos: right, color: "rgb:magenta,3;blue,2;white,5", width: 1.4, height: 3, depth: 3}
+  - {type: block, name: s4, col: 2, resolution: 32,  caption: subnet, label_pos: right, color: "rgb:magenta,3;blue,2;white,5", width: 1.4, height: 3, depth: 3}
+  - {type: block, name: s5, col: 2, resolution: 16,  caption: subnet, label_pos: right, color: "rgb:magenta,3;blue,2;white,5", width: 1.4, height: 3, depth: 3}

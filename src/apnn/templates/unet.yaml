@@ -1,0 +1,43 @@
+name: unet
+layout: encoder_decoder
+theme: default
+legend: true
+
+sizing:
+  mode: spatial
+  ref_resolution: 572
+  ref_size: 50
+  min_size: 4
+  ref_channels: 64
+  ref_width: 2.0
+  min_width: 1.0
+  max_width: 5.0
+
+layers:
+  # encoder
+  - {type: conv_block, name: enc1, channels: 64,   resolution: 572}
+  - {type: pool,       name: pool1, channels: 64,  resolution: 284}
+  - {type: conv_block, name: enc2, channels: 128,  resolution: 284}
+  - {type: pool,       name: pool2, channels: 128, resolution: 140}
+  - {type: conv_block, name: enc3, channels: 256,  resolution: 140}
+  - {type: pool,       name: pool3, channels: 256, resolution: 68}
+  - {type: conv_block, name: enc4, channels: 512,  resolution: 68}
+  - {type: pool,       name: pool4, channels: 512, resolution: 32}
+  # bottleneck
+  - {type: conv_block, name: bottleneck, channels: 1024, resolution: 32}
+  # decoder
+  - {type: upsample,   name: up4, channels: 512, resolution: 68}
+  - {type: conv_block, name: dec4, channels: 512, resolution: 68}
+  - {type: upsample,   name: up3, channels: 256, resolution: 140}
+  - {type: conv_block, name: dec3, channels: 256, resolution: 140}
+  - {type: upsample,   name: up2, channels: 128, resolution: 284}
+  - {type: conv_block, name: dec2, channels: 128, resolution: 284}
+  - {type: upsample,   name: up1, channels: 64,  resolution: 572}
+  - {type: conv_block, name: dec1, channels: 64,  resolution: 572}
+  # output
+  - {type: softmax,    name: out, channels: 2, resolution: 572, caption: Output}
+
+sections:
+  - {from: enc1, to: pool4, label: Encoder}
+  - {from: bottleneck, to: bottleneck, label: Bottleneck}
+  - {from: up4, to: dec1, label: Decoder}

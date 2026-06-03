@@ -1,0 +1,31 @@
+name: autoencoder
+layout: sequential
+theme: nature
+legend: true
+
+sizing:
+  mode: spatial
+  ref_resolution: 64
+  ref_size: 30
+  min_size: 5
+  ref_channels: 64
+  ref_width: 2.0
+  min_width: 1.0
+  max_width: 6.0
+
+layers:
+  - {type: input,  name: img, channels: 3,   resolution: 64, caption: Image}
+  - {type: conv,   name: e1,  channels: 32,  resolution: 64}
+  - {type: pool,   name: p1,  channels: 32,  resolution: 32}
+  - {type: conv,   name: e2,  channels: 64,  resolution: 32}
+  - {type: pool,   name: p2,  channels: 64,  resolution: 16}
+  - {type: conv,   name: z,   channels: 128, resolution: 16, caption: latent}
+  - {type: upsample, name: u1, channels: 64, resolution: 32}
+  - {type: conv,   name: d1,  channels: 64,  resolution: 32}
+  - {type: upsample, name: u2, channels: 32, resolution: 64}
+  - {type: conv,   name: d2,  channels: 32,  resolution: 64}
+  - {type: output, name: out, channels: 3,   resolution: 64, caption: Recon}
+
+sections:
+  - {from: img, to: p2, label: Encoder}
+  - {from: u1, to: out, label: Decoder}

@@ -1,0 +1,28 @@
+name: alexnet
+layout: sequential
+theme: default
+legend: true
+
+sizing:
+  mode: spatial
+  ref_resolution: 227
+  ref_size: 36
+  min_size: 5
+  ref_channels: 256
+  ref_width: 2.2
+  min_width: 1.2
+  max_width: 8.0
+
+layers:
+  - {type: input,   name: img,   channels: 3,    resolution: 227, caption: Image}
+  - {type: conv,    name: conv1, channels: 96,   resolution: 55,  caption: 11x11}
+  - {type: pool,    name: pool1, channels: 96,   resolution: 27}
+  - {type: conv,    name: conv2, channels: 256,  resolution: 27,  caption: 5x5}
+  - {type: pool,    name: pool2, channels: 256,  resolution: 13}
+  - {type: conv,    name: conv3, channels: 384,  resolution: 13,  caption: 3x3}
+  - {type: conv,    name: conv4, channels: 384,  resolution: 13,  caption: 3x3}
+  - {type: conv,    name: conv5, channels: 256,  resolution: 13,  caption: 3x3}
+  - {type: pool,    name: pool5, channels: 256,  resolution: 6}
+  - {type: fc,      name: fc6,   channels: 4096, caption: FC, height: 28, width: 2, depth: 2}
+  - {type: fc,      name: fc7,   channels: 4096,            height: 28, width: 2, depth: 2}
+  - {type: softmax, name: out,   channels: 1000, caption: Softmax, height: 28, width: 1.6, depth: 2}

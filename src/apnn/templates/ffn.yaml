@@ -1,0 +1,20 @@
+name: ffn
+layout: sequential
+theme: default
+legend: true
+
+# FFN: neuron count drives box height (a thin-plate funnel)
+sizing:
+  mode: units
+  ref_channels: 64
+  ref_size: 12
+  min_size: 4
+  max_size: 60
+  unit_thickness: 2.5
+
+layers:
+  - {type: input,   name: in,  channels: 784, caption: Input}
+  - {type: fc,      name: h1,  channels: 256}
+  - {type: fc,      name: h2,  channels: 128}
+  - {type: fc,      name: h3,  channels: 64}
+  - {type: softmax, name: out, channels: 10,  caption: Softmax}

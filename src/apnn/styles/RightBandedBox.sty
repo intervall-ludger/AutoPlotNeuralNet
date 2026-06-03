@@ -1,0 +1,66 @@
+\ProvidesPackage{RightBandedBox}
+\usetikzlibrary{3d}
+
+\pgfkeys{
+    /rbbox/.is family, /rbbox,
+    default/.style={
+        name=rbbox, fill=white, bandfill=gray, opacity=0.7,
+        height=10, width=2, bandwidth=2, depth=10, scale=0.2,
+        caption={}, xlabel={}, ylabel={}, zlabel={},
+    },
+    name/.store in=\rbname,
+    fill/.store in=\rbfill,
+    bandfill/.store in=\rbbandfill,
+    opacity/.store in=\rbopacity,
+    height/.store in=\rbheight,
+    width/.store in=\rbwidth,
+    bandwidth/.store in=\rbbandwidth,
+    depth/.store in=\rbdepth,
+    scale/.store in=\rbscale,
+    caption/.store in=\rbcaption,
+    xlabel/.store in=\rbxlabel,
+    ylabel/.store in=\rbylabel,
+    zlabel/.store in=\rbzlabel,
+}
+
+\tikzset{RightBandedBox/.pic={
+    \pgfkeys{/rbbox/.cd, default, #1}
+    \pgfmathsetmacro{\xa}{\rbwidth*\rbscale}
+    \pgfmathsetmacro{\xb}{(\rbwidth+\rbbandwidth)*\rbscale}
+    \pgfmathsetmacro{\y}{\rbheight*\rbscale}
+    \pgfmathsetmacro{\z}{\rbdepth*\rbscale}
+
+    % left segment [0,\xa]
+    \draw[draw=black!60, fill=\rbfill, fill opacity=\rbopacity, line join=round]
+        (\xa, \y/2, \z/2) -- (0, \y/2, \z/2) -- (0,-\y/2, \z/2) -- (\xa,-\y/2, \z/2) -- cycle   % front
+        (\xa, \y/2, \z/2) -- (0, \y/2, \z/2) -- (0, \y/2,-\z/2) -- (\xa, \y/2,-\z/2) -- cycle;  % top
+    % right (band) segment [\xa,\xb]
+    \draw[draw=black!60, fill=\rbbandfill, fill opacity=\rbopacity, line join=round]
+        (\xb, \y/2, \z/2) -- (\xa, \y/2, \z/2) -- (\xa,-\y/2, \z/2) -- (\xb,-\y/2, \z/2) -- cycle   % front
+        (\xb, \y/2, \z/2) -- (\xa, \y/2, \z/2) -- (\xa, \y/2,-\z/2) -- (\xb, \y/2,-\z/2) -- cycle   % top
+        (\xb, \y/2, \z/2) -- (\xb, \y/2,-\z/2) -- (\xb,-\y/2,-\z/2) -- (\xb,-\y/2, \z/2) -- cycle;  % right
+    % hidden edges
+    \draw[draw=black!35, densely dashed, opacity=0.6]
+        (\xb,-\y/2,-\z/2) -- (0,-\y/2,-\z/2)
+        (0,-\y/2, \z/2)   -- (0,-\y/2,-\z/2)
+        (0, \y/2,-\z/2)   -- (0,-\y/2,-\z/2);
+
+    % labels
+    \path (0,-\y/2,\z/2) -- (\xb,-\y/2,\z/2) node[midway, below=1pt, font=\fntsm] {\rbxlabel};
+    \path (0,\y/2,\z/2)  -- (0,-\y/2,\z/2)   node[midway, left=1pt,  font=\fntsm] {\rbylabel};
+    \path (\xb,-\y/2,\z/2) -- (\xb,-\y/2,-\z/2) node[midway, below right, font=\fntsm, sloped] {\rbzlabel};
+
+    % anchors
+    \coordinate (\rbname-west)      at (0    , 0    , 0);
+    \coordinate (\rbname-east)      at (\xb  , 0    , 0);
+    \coordinate (\rbname-north)     at (\xb/2, \y/2 , 0);
+    \coordinate (\rbname-south)     at (\xb/2,-\y/2 , 0);
+    \coordinate (\rbname-anchor)    at (\xb/2, 0    , 0);
+    \coordinate (\rbname-northeast) at (\xb  , \y/2 , \z/2);
+    \coordinate (\rbname-northwest) at (0    , \y/2 , \z/2);
+    \coordinate (\rbname-southeast) at (\xb  ,-\y/2 , \z/2);
+    \coordinate (\rbname-southwest) at (0    ,-\y/2 , \z/2);
+    \coordinate (\rbname-near)      at (\xb/2, 0    , \z/2);
+    \coordinate (\rbname-neareast)  at (\xb  , 0    , \z/2);
+    \coordinate (\rbname-nearwest)  at (0    , 0    , \z/2);
+}}
