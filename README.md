@@ -7,8 +7,8 @@ Clean TikZ diagrams of neural networks — no manual TikZ. Point it at a trained
 PyTorch model and get a plot, or write a small YAML config by hand.
 
 ```
-model.pt  ─┐
-           ├─►  apnn  ─►  .tex  ─►  PDF / PNG
+model.pt   ─┐
+            ├─►  apnn  ─►  .tex  ─►  PDF / PNG
 config.yaml ┘
 ```
 
