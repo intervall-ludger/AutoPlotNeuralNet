@@ -74,13 +74,6 @@ def to_ball(name: str, fill: str, offset: str = "(0,0,0)", to: str = "(0,0,0)",
     )
 
 
-def to_connection(from_name: str, to_name: str) -> str:
-    return (
-        r"\draw [connection] (" + from_name + "-east)"
-        r" -- node {\midarrow} (" + to_name + "-west);" "\n"
-    )
-
-
 def _anchor(name: str, anchor: str, shift_x: float) -> str:
     if shift_x:
         return f"([xshift={shift_x}cm]{name}-{anchor})"
@@ -98,13 +91,6 @@ def to_edge(from_name: str, from_anchor: str, to_name: str, to_anchor: str,
     return (
         r"\draw [" + style + "] " + _anchor(from_name, from_anchor, shift_x) + " -- "
         + mid + " " + _anchor(to_name, to_anchor, shift_x) + ";" "\n"
-    )
-
-
-def to_dashed_connection(from_name: str, to_name: str) -> str:
-    return (
-        r"\draw [connection, densely dashed] (" + from_name + "-east)"
-        r" -- node {\midarrow} (" + to_name + "-west);" "\n"
     )
 
 

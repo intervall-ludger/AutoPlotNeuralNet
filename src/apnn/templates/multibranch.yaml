@@ -1,0 +1,35 @@
+name: multibranch
+layout: free
+theme: default
+legend: true
+
+# two-stream model: an image CNN branch and a token branch, fused by
+# concatenation into a small MLP head. Shows the 'free' layout: every node
+# is placed at an explicit (x, y) and all edges are manual.
+
+layers:
+  # image branch (top row, y = 7)
+  - {type: input, name: img,    x: 0,    y: 7,  caption: image,     channels: 3,   height: 30, width: 1.2, depth: 30}
+  - {type: conv,  name: iconv1, x: 3,    y: 7,  caption: conv,      channels: 64,  height: 30, width: 3,   depth: 30}
+  - {type: conv,  name: iconv2, x: 7,    y: 7,  caption: conv,      channels: 128, height: 26, width: 3,   depth: 26}
+
+  # token branch (bottom row, y = -7)
+  - {type: input, name: tok,    x: 0,    y: -7, caption: tokens,    channels: 1,   height: 30, width: 1.2, depth: 30}
+  - {type: norm,  name: tnorm,  x: 3,    y: -7, caption: norm,                     height: 26, depth: 26}
+  - {type: conv,  name: tattn,  x: 6.5,  y: -7, caption: self-attn, channels: 256, height: 26, width: 3,   depth: 26,
+     color: "rgb:blue,4;cyan,1;white,4", band_color: "rgb:blue,5;cyan,2;white,3"}
+
+  # fusion + head (center row, y = 0)
+  - {type: concat,  name: fuse, x: 12,   y: 0,  height: 22, depth: 6}
+  - {type: fc,      name: head, x: 18,   y: 0,  caption: MLP,       channels: 512, height: 26, width: 2.5, depth: 26}
+  - {type: softmax, name: out,  x: 22,   y: 0,  caption: softmax,   channels: 10,  height: 26, width: 1.5, depth: 26}
+
+connections:
+  - {from: img,    to: iconv1}
+  - {from: iconv1, to: iconv2}
+  - {from: tok,    to: tnorm}
+  - {from: tnorm,  to: tattn}
+  - {from: iconv2, to: fuse}
+  - {from: tattn,  to: fuse}
+  - {from: fuse,   to: head}
+  - {from: head,   to: out}

@@ -18,6 +18,7 @@ class PyramidLayout(Layout):
     Levels align across columns so lateral connections run horizontally.
     """
 
+    shared_caption_baseline = False  # 2D layout: blocks label themselves locally
     col_spacing: float = 7.0
     level_step: float = 1.5   # vertical gap between stacked plates
 

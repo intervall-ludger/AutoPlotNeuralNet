@@ -14,22 +14,19 @@ def to_head(styles_path: str, font_scale: float = 1.0) -> str:
         r"\usetikzlibrary{3d}" "\n"
         r"\usetikzlibrary{calc}" "\n"
         r"\usetikzlibrary{fit,backgrounds}" "\n"
-        r"\newcommand{\fntlg}" + font(32) + "\n"
-        r"\newcommand{\fntmd}" + font(25) + "\n"
-        r"\newcommand{\fntsm}" + font(20) + "\n"
+        # init.tex \providecommand's defaults; override with the width-derived scale
+        r"\renewcommand{\fntlg}" + font(32) + "\n"
+        r"\renewcommand{\fntmd}" + font(25) + "\n"
+        r"\renewcommand{\fntsm}" + font(20) + "\n"
     )
 
 
 def to_begin() -> str:
+    # edge styles + \copymidarrow now live in styles/init.tex so hand-written
+    # documents that import the styles get them too
     return (
         r"\begin{document}" "\n"
         r"\begin{tikzpicture}" "\n"
-        r"\tikzstyle{connection}=[ultra thick,every node/.style={sloped,allow upside down},"
-        r"draw=\edgecolor,opacity=0.7]" "\n"
-        r"\tikzstyle{copyconnection}=[very thick,every node/.style={sloped,allow upside down},"
-        r"draw={rgb:blue,5;red,1;green,1;black,2},opacity=0.85]" "\n"
-        r"\newcommand{\copymidarrow}{\tikz \draw[-Stealth,line width=1.0mm,"
-        r"draw={rgb:blue,5;red,1;green,1;black,2}] (-0.3,0) -- ++(0.3,0);}" "\n"
     )
 
 

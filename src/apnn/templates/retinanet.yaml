@@ -2,7 +2,6 @@ name: retinanet
 layout: pyramid
 theme: default
 legend: false
-font_scale: 0.7   # narrow diagram: scale fonts down to match the others
 
 # plate sizing: flat feature maps, area from resolution, thin thickness from channels
 sizing:

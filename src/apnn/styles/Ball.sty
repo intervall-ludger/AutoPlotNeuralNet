@@ -1,4 +1,4 @@
-\ProvidesPackage{Ball}
+\ProvidesPackage{Ball}[2026/06/04 v0.1 apnn sum/concat ball]
 \usetikzlibrary{3d}
 
 \pgfkeys{
@@ -21,9 +21,18 @@
     \draw[draw=black!55, line width=0.3pt] (\r,0) circle [radius=\r];
     \node[font=\fntmd] at (\r,0) {\balllogo};
 
-    \coordinate (\ballname-west)   at (0    , 0 );
-    \coordinate (\ballname-east)   at (2*\r  , 0 );
-    \coordinate (\ballname-north)  at (\r    , \r);
-    \coordinate (\ballname-south)  at (\r    ,-\r);
-    \coordinate (\ballname-anchor) at (\r    , 0 );
+    \pgfmathsetmacro{\rd}{\r*0.70710678}
+    \coordinate (\ballname-west)      at (0     , 0  );
+    \coordinate (\ballname-east)      at (2*\r   , 0  );
+    \coordinate (\ballname-north)     at (\r     , \r );
+    \coordinate (\ballname-south)     at (\r     ,-\r );
+    \coordinate (\ballname-anchor)    at (\r     , 0  );
+    % diagonal + near anchors for parity with Box / RightBandedBox
+    \coordinate (\ballname-northeast) at (\r+\rd , \rd);
+    \coordinate (\ballname-northwest) at (\r-\rd , \rd);
+    \coordinate (\ballname-southeast) at (\r+\rd ,-\rd);
+    \coordinate (\ballname-southwest) at (\r-\rd ,-\rd);
+    \coordinate (\ballname-near)      at (\r     , 0  );
+    \coordinate (\ballname-neareast)  at (2*\r   , 0  );
+    \coordinate (\ballname-nearwest)  at (0      , 0  );
 }}

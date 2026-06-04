@@ -2,7 +2,6 @@ name: fcn8
 layout: flow
 theme: default
 legend: true
-font_scale: 1.55  # this diagram is wide, so scale fonts up to match the others
 
 # FCN-8s: VGG encoder, fc-as-conv, three up-conv stages fused with pool4/pool3
 # skip streams via element-wise sums (after PlotNeuralNet's fcn8 example).

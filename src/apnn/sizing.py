@@ -35,12 +35,14 @@ def resolution_to_size(resolution: int | tuple[int, ...], cfg: SizingConfig) -> 
     return round(min(max(size, cfg.min_size), cfg.max_size), 1)
 
 
-def channels_to_width(channels: int, cfg: SizingConfig) -> float:
+def channels_to_width(channels: int | None, cfg: SizingConfig) -> float:
+    channels = cfg.ref_channels if channels is None else channels
     width = cfg.ref_width * log2(channels / cfg.ref_channels + 1)
     return round(max(cfg.min_width, min(width, cfg.max_width)), 1)
 
 
-def units_to_height(channels: int, cfg: SizingConfig) -> float:
+def units_to_height(channels: int | None, cfg: SizingConfig) -> float:
     # sqrt mapping keeps a readable spread between large and small layers
+    channels = cfg.ref_channels if channels is None else channels
     height = cfg.ref_size / sqrt(cfg.ref_channels) * sqrt(channels)
     return round(min(max(height, cfg.min_size), cfg.max_size), 1)

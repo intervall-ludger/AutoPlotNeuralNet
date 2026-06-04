@@ -42,6 +42,9 @@ Run `uv run apnn render src/apnn/templates/<name>.yaml -o out/<name> --to png`.
 ### FCN-8s — fully convolutional, skip-stream fusion
 ![FCN-8s](docs/gallery/fcn8.png)
 
+### Multi-branch — free layout, two streams fused by concatenation
+![Multi-branch](docs/gallery/multibranch.png)
+
 ## Requirements
 
 - Python managed via [`uv`](https://docs.astral.sh/uv/)
@@ -64,8 +67,13 @@ uv run apnn render src/apnn/templates/ffn.yaml -o examples/ffn --to png
 uv run apnn new ffn > my_net.yaml
 uv run apnn render my_net.yaml --to pdf
 
-# list templates
+# check a config without rendering (no LaTeX needed)
+uv run apnn validate my_net.yaml
+
+# discover building blocks
 uv run apnn list-templates
+uv run apnn list-node-types
+uv run apnn list-layouts
 ```
 
 `--to` accepts `tex`, `pdf` (default) or `png`. `-o/--out` is the output path
@@ -80,6 +88,8 @@ theme: default            # default | nature | grayscale
 colors:                   # optional per-type color overrides
   fc: "rgb:blue,5;red,2.5;white,5"
 sizing:                   # optional, all fields default (see below)
+  mode: spatial           # spatial (face from resolution, thickness from channels)
+                          #   | units (height from channels, FFN) | plate (flat FPN sheet)
   ref_resolution: 224     # resolution mapped to ref_size
   ref_size: 40            # box height/depth at ref_resolution
   min_size: 8             # smallest box height/depth
@@ -87,46 +97,89 @@ sizing:                   # optional, all fields default (see below)
   ref_width: 2.5          # box thickness at ref_channels
   min_width: 1.0
   max_width: 8.0
+  max_size: 60.0          # largest box height/depth
+  unit_thickness: 2.5     # box width/depth in 'units' mode
 legend: true
-font_scale: 1.0           # scale fonts so they read consistently across diagrams
-                          # (wide diagrams > 1.0, narrow ones < 1.0; ~ width / 1150pt)
+font_scale: auto          # auto-derives a scale from the rendered width so fonts
+                          # read consistently; a number (e.g. 1.4) forces it
 layers:
   - {type: input,   name: in,  channels: 784, caption: Input}
   - {type: fc,      name: h1,  channels: 256, caption: Dense}
   - {type: softmax, name: out, channels: 10,  caption: Softmax}
 sections: []              # optional bracket groups: [{from, to, label}]
-connections: []           # optional manual edges: [{from, to, style}]
+connections: []           # optional manual edges: [{from, to, style, ...}]
                           #   style: solid (default) | dashed | skip
+                          #   skip_pos: arc height for skip edges
+                          #   from_anchor/to_anchor: e.g. north, southeast (default east/west)
+                          #   label: author LaTeX drawn above the edge, e.g. "$1\times1$"
 ```
 
-Available layer types: `input`, `output`, `fc`, `softmax`, `conv`, `conv_block`,
-`pool`, `upsample`, `deconv` (up-convolution), `sum` (element-wise sum, drawn as
-a `+` ball), `block` (a generic labelled box for custom / 2D diagrams).
-Layouts:
+Available layer types (see `apnn list-node-types`): `input`, `output`, `fc`,
+`softmax`, `conv`, `conv_block`, `pool`, `upsample`, `deconv` (up-convolution),
+`sum` (element-wise `+` ball), `concat` (`‖` ball), `norm` (normalization),
+`block` (a generic labelled box for custom / 2D diagrams).
+Layouts (see `apnn list-layouts`):
 - `sequential` — FFN / CNN classifier (single row)
 - `flow` — like `sequential`, but pooling is fused flush onto its conv (FCN / VGG)
 - `encoder_decoder` — UNet, with automatic skip connections per resolution level
 - `pyramid` — RetinaNet / FPN; place nodes in columns via the `col` field
   (col 0 = backbone, col 1 = feature pyramid, col 2 = subnets) and levels are
   stacked by `resolution`
-
-Skip connections accept a `skip_pos` (arc height), e.g.
-`{from: pool4, to: elt1, style: skip, skip_pos: 2.5}`.
+- `free` — place every node at an explicit `x`/`y` (diagram units) and wire it up
+  with manual `connections`; for multi-branch / non-standard topologies
 
 Bundled templates: `ffn`, `cnn`, `alexnet`, `resnet`, `autoencoder`, `unet`,
-`retinanet`, `gemma`, `fcn8` (see `apnn list-templates`, and the gallery above).
+`retinanet`, `gemma`, `fcn8`, `multibranch` (see `apnn list-templates`, and the
+gallery above).
 
 Note: in xcolor `rgb:` color expressions, avoid the named color `orange`
 (it renders incorrectly) — mix `red` + `yellow` instead.
 
 Names (`name`, and `from`/`to` references) must be valid identifiers
 (`[A-Za-z][A-Za-z0-9_-]*`); colors must be xcolor expressions, named colors or
-hex codes. Captions and labels are treated as literal text (special LaTeX
-characters are escaped automatically).
+hex codes. Captions are literal text (special LaTeX characters are escaped
+automatically). Connection `label`s are raw LaTeX so math works (e.g.
+`"$1\times1$"`); file/shell commands like `\input` or `\write` are rejected.
 
 Each layer may override `color`, `band_color`, `opacity`, and the box geometry
 (`height`, `width`, `depth`); otherwise geometry is derived from `resolution` and
 `channels` via the `sizing` config.
+
+## Hand-written `.tex` (advanced)
+
+For topologies the config can't express, drop to raw TikZ while reusing apnn's
+3D primitives and themes:
+
+```bash
+# a compilable, hand-editable .tex (+ a self-contained styles/ folder),
+# seeded from a template and annotated with an anchor cheatsheet
+uv run apnn scaffold-tex cnn -o my_fig
+# pdflatex my_fig.tex
+
+# or just drop the style files next to your own document
+uv run apnn export-styles styles
+```
+
+The styles are loaded with `\usepackage{import}` + `\subimport{styles/}{init}`,
+which pulls in `Box`, `RightBandedBox` and `Ball`, the fonts (`\fntlg`,
+`\fntmd`, `\fntsm`), the edge colour `\edgecolor`, and the `connection` style.
+
+Each `Box` / `RightBandedBox` / `Ball` pic named `n` exposes these anchors:
+
+| anchor | position |
+|--------|----------|
+| `n-west` `n-east` | left / right centre |
+| `n-north` `n-south` | top / bottom centre |
+| `n-anchor` | centre |
+| `n-northeast` `n-northwest` `n-southeast` `n-southwest` | front-face corners |
+| `n-near` `n-neareast` `n-nearwest` | front-face centre / corners |
+
+```latex
+\pic[shift={(3,0,0)}] at (a-east)
+  {Box={name=b, fill={rgb:yellow,5;red,2.5;white,5},
+        height=30, width=2, depth=30, caption=conv}};
+\draw[connection] (a-east) -- node{\midarrow} (b-west);
+```
 
 ## Python API
 

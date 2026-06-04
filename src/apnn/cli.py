@@ -1,4 +1,5 @@
 import logging
+import shutil
 import sys
 from importlib.resources import as_file, files
 from pathlib import Path
@@ -8,9 +9,39 @@ from pydantic import ValidationError
 
 from .builder import Diagram
 from .config import load_config
-from .render import render
+from .layout import LAYOUTS
+from .nodes import NODE_TYPES
+from .render import render, styles_dir
 
 log = logging.getLogger("apnn")
+
+_CHEATSHEET = r"""% ---- apnn hand-editing cheatsheet -------------------------------------------
+% Box / RightBandedBox / Ball pics expose these named anchors on <name>:
+%   -west -east -north -south -anchor
+%   -northeast -northwest -southeast -southwest -near -neareast -nearwest
+% Forward edge:  \draw[connection] (a-east) -- node{\midarrow} (b-west);
+% New 3D box:    \pic[shift={(3,0,0)}] at (a-east)
+%                  {Box={name=b, fill={rgb:yellow,5;red,2.5;white,5},
+%                        height=30, width=2, depth=30, caption=conv}};
+% Fonts: \fntlg \fntmd \fntsm    Edge colour macro: \edgecolor
+% -----------------------------------------------------------------------------
+"""
+
+_NODE_DESCRIPTIONS = {
+    "input": "Input feature map / image",
+    "output": "Output feature map",
+    "fc": "Fully connected / dense layer (banded box)",
+    "softmax": "Softmax / classification head",
+    "conv": "Convolution block (banded box)",
+    "conv_block": "Two stacked convolutions",
+    "pool": "Pooling (thin box)",
+    "upsample": "Upsampling (thin box)",
+    "deconv": "Up-convolution / transposed conv",
+    "sum": "Element-wise sum (+ ball)",
+    "concat": "Concatenation (‖ ball)",
+    "norm": "Normalization layer (thin box)",
+    "block": "Generic labelled box for custom diagrams",
+}
 
 
 def _templates_dir() -> Path:
@@ -55,6 +86,28 @@ def render_cmd(config: str, out: str | None, fmt: str, dpi: int) -> None:
     click.echo(f"Generated: {result}")
 
 
+@main.command("validate")
+@click.argument("config", type=click.Path(exists=True, dir_okay=False))
+def validate_cmd(config: str) -> None:
+    """Check a YAML CONFIG without rendering (no LaTeX needed)."""
+    try:
+        cfg = load_config(config)
+        diagram = Diagram.from_config(cfg)
+        diagram.to_tex()  # exercise sizing + layout so arithmetic errors surface here
+    except ValidationError as exc:
+        click.echo(f"Invalid config '{config}':\n{exc}", err=True)
+        sys.exit(1)
+    except (ValueError, KeyError) as exc:
+        click.echo(f"Error in '{config}': {exc}", err=True)
+        sys.exit(1)
+
+    types = ", ".join(sorted({layer.type for layer in cfg.layers}))
+    click.echo(f"OK: '{config}' is valid.")
+    click.echo(f"  layout: {cfg.layout}, theme: {cfg.theme}")
+    click.echo(f"  {len(cfg.layers)} layers ({types})")
+    click.echo(f"  {len(cfg.connections)} manual connections, {len(cfg.sections)} sections")
+
+
 @main.command("list-templates")
 def list_templates() -> None:
     """List the bundled config templates."""
@@ -62,10 +115,22 @@ def list_templates() -> None:
         click.echo(path.stem)
 
 
-@main.command()
-@click.argument("template")
-def new(template: str) -> None:
-    """Print a bundled TEMPLATE config to stdout."""
+@main.command("list-node-types")
+def list_node_types() -> None:
+    """List the available layer types and what they draw."""
+    for name in NODE_TYPES:
+        click.echo(f"{name:<12} {_NODE_DESCRIPTIONS.get(name, '')}")
+
+
+@main.command("list-layouts")
+def list_layouts() -> None:
+    """List the available layouts."""
+    for name, cls in LAYOUTS.items():
+        doc = (cls.__doc__ or "").strip().splitlines()[0] if cls.__doc__ else ""
+        click.echo(f"{name:<16} {doc}")
+
+
+def _resolve_template(template: str) -> Path:
     if not template.replace("_", "").replace("-", "").isalnum():
         click.echo(f"Invalid template name '{template}'.", err=True)
         sys.exit(1)
@@ -74,7 +139,44 @@ def new(template: str) -> None:
         available = ", ".join(p.stem for p in sorted(_templates_dir().glob("*.yaml")))
         click.echo(f"Unknown template '{template}'. Available: {available}.", err=True)
         sys.exit(1)
-    click.echo(path.read_text())
+    return path
+
+
+@main.command("export-styles")
+@click.argument("dest", type=click.Path(file_okay=False), default="styles")
+def export_styles(dest: str) -> None:
+    """Copy the TikZ style files into DEST for use in a hand-written .tex."""
+    dest_path = Path(dest)
+    shutil.copytree(styles_dir(), dest_path, dirs_exist_ok=True)
+    click.echo(f"Wrote styles to {dest_path}/")
+    click.echo("Add to your .tex preamble:")
+    click.echo(r"  \usepackage{import}")
+    click.echo(rf"  \subimport{{{dest_path}/}}{{init}}")
+
+
+@main.command("scaffold-tex")
+@click.argument("template")
+@click.option("-o", "--out", default=None, help="Output path without extension.")
+def scaffold_tex(template: str, out: str | None) -> None:
+    """Emit a hand-editable standalone .tex (+ styles) seeded from TEMPLATE."""
+    path = _resolve_template(template)
+    try:
+        diagram = Diagram.from_config(load_config(path))
+    except (ValidationError, ValueError) as exc:
+        click.echo(f"Error in template '{template}': {exc}", err=True)
+        sys.exit(1)
+    tex_path = render(diagram, out or f"{template}_scaffold", fmt="tex")
+    text = tex_path.read_text().replace(
+        r"\begin{tikzpicture}", r"\begin{tikzpicture}" + "\n" + _CHEATSHEET, 1)
+    tex_path.write_text(text)
+    click.echo(f"Wrote {tex_path} (edit it, then: pdflatex {tex_path.name})")
+
+
+@main.command()
+@click.argument("template")
+def new(template: str) -> None:
+    """Print a bundled TEMPLATE config to stdout."""
+    click.echo(_resolve_template(template).read_text())
 
 
 if __name__ == "__main__":

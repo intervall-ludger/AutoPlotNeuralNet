@@ -2,7 +2,6 @@ name: autoencoder
 layout: sequential
 theme: nature
 legend: true
-font_scale: 0.85
 
 sizing:
   mode: spatial

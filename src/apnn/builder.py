@@ -11,13 +11,14 @@ from .tikz import document, emit
 _LEGEND_GAP = 50
 _LEGEND_GAP_WITH_SECTIONS = 90
 _CAPTION_DROP = 1.5      # cm below the lowest box for the shared caption baseline
+_CAPTION_DROP_LOCAL = 0.4  # cm below each box for per-node captions (2D layouts)
 _BRACKET_YSHIFT = -88    # pt below the lowest box for section brackets (under captions)
 
 
 class Diagram:
     def __init__(self, name: str = "diagram", layout: str | Layout = "sequential",
                  theme: Theme | None = None, sizing: SizingConfig | None = None,
-                 legend: bool = True, font_scale: float = 1.0):
+                 legend: bool = True, font_scale: float | str = "auto"):
         self.name = name
         self.nodes: list[Node] = []
         self.sections: list[tuple[str, str, str]] = []
@@ -45,9 +46,11 @@ class Diagram:
         return self
 
     def connect(self, from_name: str, to_name: str, style: str = "solid",
-                skip_pos: float = 1.5) -> "Diagram":
-        self.manual_connections.append(
-            Connection(from_name, to_name, style=style, skip_pos=skip_pos))
+                skip_pos: float = 1.5, from_anchor: str = "east",
+                to_anchor: str = "west", label: str = "") -> "Diagram":
+        self.manual_connections.append(Connection(
+            from_name, to_name, style=style, skip_pos=skip_pos,
+            from_anchor=from_anchor, to_anchor=to_anchor, label=label))
         return self
 
     @classmethod
@@ -71,11 +74,13 @@ class Diagram:
                 band_color=layer_cfg.band_color, opacity=layer_cfg.opacity,
                 height=layer_cfg.height, width=layer_cfg.width, depth=layer_cfg.depth,
                 col=layer_cfg.col, label_pos=layer_cfg.label_pos,
+                x=layer_cfg.x, y=layer_cfg.y,
             ))
         for section in cfg.sections:
             diagram.section(section.from_, section.to, section.label)
         for conn in cfg.connections:
-            diagram.connect(conn.from_, conn.to, conn.style, conn.skip_pos)
+            diagram.connect(conn.from_, conn.to, conn.style, conn.skip_pos,
+                            conn.from_anchor, conn.to_anchor, conn.label)
         return diagram
 
     def _apply_sizing(self) -> None:
@@ -128,11 +133,20 @@ class Diagram:
             items.append(item)
         return items
 
-    def to_tex(self, styles_path: str = "styles/") -> str:
+    def needs_auto_scale(self) -> bool:
+        return not isinstance(self.font_scale, (int, float))
+
+    def resolve_font_scale(self, override: float | None = None) -> float:
+        # auto-scaling resolves to 1.0 here; render() measures and re-renders
+        if override is not None:
+            return override
+        return 1.0 if self.needs_auto_scale() else float(self.font_scale)
+
+    def to_tex(self, styles_path: str = "styles/", font_scale: float | None = None) -> str:
         self._apply_sizing()
         auto_connections = self._layout.compute(self.nodes)
 
-        parts = [document.to_head(styles_path, self.font_scale),
+        parts = [document.to_head(styles_path, self.resolve_font_scale(font_scale)),
                  self._theme.colors_tex(), document.to_begin()]
         for node in self.nodes:
             parts.append(node.tikz(self._theme))
@@ -141,13 +155,15 @@ class Diagram:
         for conn in self.manual_connections:
             parts.append(conn.tikz())
 
-        # captions on a shared baseline below the lowest box
+        # single-row layouts share one caption baseline; 2D layouts caption locally
         baseline = self._lowest_node()
+        shared = self._layout.shared_caption_baseline
         if baseline:
             for node in self.nodes:
                 if node.uses_baseline_caption() and node.caption.strip():
-                    parts.append(emit.to_caption(node.name, baseline, node.caption,
-                                                 drop=_CAPTION_DROP))
+                    ref = baseline if shared else node.name
+                    drop = _CAPTION_DROP if shared else _CAPTION_DROP_LOCAL
+                    parts.append(emit.to_caption(node.name, ref, node.caption, drop=drop))
 
         if self.sections:
             for from_name, to_name, label in self.sections:

@@ -21,6 +21,8 @@ class Node:
     depth: float | None = None
     col: int = 0  # column index for 2D layouts
     label_pos: str = "on"  # block label placement: on | right | below
+    x: float | None = None  # explicit position for the 'free' layout
+    y: float | None = None
 
     # filled in by the sizing pass
     _height: float = field(default=0.0, repr=False)
@@ -193,19 +195,51 @@ class Sum(Node):
     DEFAULT_OPACITY = 0.85
     FIXED_WIDTH = 1.0  # the ball ignores width; this just keeps the sizing pass happy
     _SCALE = 0.2  # matches Box.sty so the ball matches box heights
+    LOGO = r"$+$"
+    LABEL = "Element-wise sum"
+
+    def _fill(self, theme: Theme) -> str:
+        return self.color or theme.sum_op
 
     def _radius(self) -> float:
         return round(self._height * self._SCALE / 2, 3)
 
     def tikz(self, theme: Theme) -> str:
         return emit.to_ball(
-            name=self.name, fill=self.color or theme.sum_op,
+            name=self.name, fill=self._fill(theme),
             offset=self._offset, to=self._to,
-            radius=self._radius(), logo=r"$+$", opacity=self._opacity(),
+            radius=self._radius(), logo=self.LOGO, opacity=self._opacity(),
         )
 
     def legend_item(self, theme: Theme) -> dict:
-        return {"fill": self.color or theme.sum_op, "label": "Element-wise sum"}
+        return {"fill": self._fill(theme), "label": self.LABEL}
+
+
+class Concat(Sum):
+    """Concatenation, drawn as a shaded ball with a ``‖`` logo."""
+
+    LOGO = r"$\Vert$"
+    LABEL = "Concatenate"
+
+    def _fill(self, theme: Theme) -> str:
+        return self.color or theme.concat
+
+
+class Norm(Node):
+    """Normalization layer (LayerNorm / BatchNorm): a thin plain box."""
+
+    FIXED_WIDTH = 1.2
+
+    def tikz(self, theme: Theme) -> str:
+        return emit.to_box(
+            name=self.name, fill=self.color or theme.norm,
+            offset=self._offset, to=self._to,
+            width=self._width, height=self._height, depth=self._depth,
+            opacity=self._opacity(), xlabel=self._xlabel(), caption=self.caption,
+        )
+
+    def legend_item(self, theme: Theme) -> dict:
+        return {"fill": self.color or theme.norm, "label": "Normalization"}
 
 
 class Pool(Node):
@@ -253,5 +287,7 @@ NODE_TYPES: dict[str, type[Node]] = {
     "upsample": Upsample,
     "deconv": Deconv,
     "sum": Sum,
+    "concat": Concat,
+    "norm": Norm,
     "block": Block,
 }

@@ -13,6 +13,7 @@ class Theme:
     softmax: str = r"rgb:magenta,5;black,7"
     sum_op: str = r"rgb:blue,5;green,15"
     concat: str = r"rgb:blue,3;green,2;white,5"
+    norm: str = r"rgb:black,1;white,9"
     input_layer: str = r"rgb:magenta,2;blue,1;white,8"
     output_layer: str = r"rgb:green,3;blue,1;white,6"
     edge: str = r"rgb:blue,4;red,1;green,4;black,3"
@@ -42,6 +43,7 @@ THEMES: dict[str, Theme] = {
         softmax=r"rgb:black,5;white,5",
         sum_op=r"rgb:black,2;white,8",
         concat=r"rgb:black,2;white,8",
+        norm=r"rgb:black,1;white,9",
         input_layer=r"rgb:black,1;white,9",
         output_layer=r"rgb:black,3;white,7",
     ),

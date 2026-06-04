@@ -35,5 +35,8 @@ class Connection:
 
 
 class Layout:
+    # single-row layouts align all captions on one baseline; 2D layouts caption locally
+    shared_caption_baseline: bool = True
+
     def compute(self, nodes: list[Node]) -> list[Connection]:
         raise NotImplementedError
