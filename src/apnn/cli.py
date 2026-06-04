@@ -49,6 +49,10 @@ def _templates_dir() -> Path:
         return Path(path)
 
 
+def _render_config(config_path: str | Path, out_base: str | Path, fmt: str, dpi: int) -> Path:
+    return render(Diagram.from_config(load_config(config_path)), out_base, fmt=fmt, dpi=dpi)
+
+
 @click.group()
 @click.option("-v", "--verbose", is_flag=True, help="Enable debug logging.")
 def main(verbose: bool) -> None:
@@ -67,21 +71,14 @@ def main(verbose: bool) -> None:
               help="PNG resolution.")
 def render_cmd(config: str, out: str | None, fmt: str, dpi: int) -> None:
     """Render a YAML CONFIG into a TikZ diagram."""
+    out_base = out or Path(config).stem
     try:
-        cfg = load_config(config)
-        diagram = Diagram.from_config(cfg)
+        result = _render_config(config, out_base, fmt, dpi)
     except ValidationError as exc:
         click.echo(f"Invalid config '{config}':\n{exc}", err=True)
         sys.exit(1)
-    except ValueError as exc:
-        click.echo(f"Error in '{config}': {exc}", err=True)
-        sys.exit(1)
-
-    out_base = out or Path(config).stem
-    try:
-        result = render(diagram, out_base, fmt=fmt, dpi=dpi)
-    except RuntimeError as exc:
-        click.echo(str(exc), err=True)
+    except (ValueError, RuntimeError) as exc:
+        click.echo(f"Error rendering '{config}': {exc}", err=True)
         sys.exit(1)
     click.echo(f"Generated: {result}")
 
@@ -187,8 +184,14 @@ def new(template: str) -> None:
 @click.option("--arch", default=None,
               help="torchvision arch (e.g. resnet50) to rebuild a weights-only .pt.")
 @click.option("--name", default=None, help="Diagram name (default: arch or file stem).")
-def from_torch(model: str, out: str | None, input_shape: str,
-               arch: str | None, name: str | None) -> None:
+@click.option("--to", "fmt", type=click.Choice(["tex", "pdf", "png"]), default=None,
+              help="Also render the generated config in one step.")
+@click.option("--dpi", type=click.IntRange(72, 600), default=150, show_default=True,
+              help="PNG resolution when --to png.")
+@click.option("--unsafe-load", is_flag=True,
+              help="Allow full pickle deserialization of a whole saved model (only for trusted files).")
+def from_torch(model: str, out: str | None, input_shape: str, arch: str | None,
+               name: str | None, fmt: str | None, dpi: int, unsafe_load: bool) -> None:
     """Build a config from a PyTorch MODEL (.pt). Needs the 'torch' extra."""
     try:
         shape = tuple(int(d) for d in input_shape.split(","))
@@ -197,11 +200,13 @@ def from_torch(model: str, out: str | None, input_shape: str,
         sys.exit(1)
     try:
         from .torch_import import config_from_torch
-        yaml_text = config_from_torch(model, shape, arch=arch, name=name)
+        yaml_text = config_from_torch(model, shape, arch=arch, name=name,
+                                      unsafe_load=unsafe_load)
     except ImportError as exc:
         click.echo(
             f"PyTorch/torchvision required ({exc}). Install with: "
-            "pip install 'autoplotneuralnet[torch]' (or: pip install torch torchvision).",
+            "pip install 'autoplotneuralnet[torch] @ git+https://github.com/"
+            "intervall-ludger/AutoPlotNeuralNet.git' (or: pip install torch torchvision).",
             err=True)
         sys.exit(1)
     except (ValueError, RuntimeError, FileNotFoundError) as exc:
@@ -211,7 +216,15 @@ def from_torch(model: str, out: str | None, input_shape: str,
     out_path = Path(out) if out else Path(model).with_suffix(".yaml")
     out_path.write_text(yaml_text)
     click.echo(f"Wrote {out_path}")
-    click.echo(f"Now render it:  apnn render {out_path} --to png")
+    if fmt is None:
+        click.echo(f"Now render it:  apnn render {out_path} --to png")
+        return
+    try:
+        result = _render_config(out_path, out_path.with_suffix(""), fmt, dpi)
+    except (ValidationError, ValueError, RuntimeError) as exc:
+        click.echo(f"Wrote config but rendering failed: {exc}", err=True)
+        sys.exit(1)
+    click.echo(f"Generated: {result}")
 
 
 if __name__ == "__main__":

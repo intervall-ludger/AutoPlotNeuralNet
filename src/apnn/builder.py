@@ -142,8 +142,26 @@ class Diagram:
             return override
         return 1.0 if self.needs_auto_scale() else float(self.font_scale)
 
+    def _check_references(self) -> None:
+        names = {node.name for node in self.nodes}
+        for conn in self.manual_connections:
+            for ref in (conn.from_name, conn.to_name):
+                if ref not in names:
+                    raise ValueError(
+                        f"connection references unknown layer '{ref}'. "
+                        f"Known layers: {', '.join(sorted(names))}."
+                    )
+        for from_name, to_name, _label in self.sections:
+            for ref in (from_name, to_name):
+                if ref not in names:
+                    raise ValueError(
+                        f"section references unknown layer '{ref}'. "
+                        f"Known layers: {', '.join(sorted(names))}."
+                    )
+
     def to_tex(self, styles_path: str = "styles/", font_scale: float | None = None) -> str:
         self._apply_sizing()
+        self._check_references()
         auto_connections = self._layout.compute(self.nodes)
 
         parts = [document.to_head(styles_path, self.resolve_font_scale(font_scale)),

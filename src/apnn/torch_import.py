@@ -7,7 +7,12 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 
-def _load_model(path: str | Path, arch: str | None):
+def _load_pt(path: str | Path, arch: str | None, unsafe_load: bool = False):
+    """Return (module, state_dict): exactly one is non-None.
+
+    A module enables the shape-accurate forward-pass walk; a bare state_dict
+    (no --arch) only carries weight shapes, so it yields a linear skeleton.
+    """
     import torch
     import torch.nn as nn
 
@@ -19,29 +24,51 @@ def _load_model(path: str | Path, arch: str | None):
             if not hasattr(tvm, arch):
                 raise ValueError(f"unknown torchvision arch '{arch}'.")
             model = getattr(tvm, arch)(weights=None)
-        obj = torch.load(path, map_location="cpu", weights_only=True)
+        try:
+            obj = torch.load(path, map_location="cpu", weights_only=not unsafe_load)
+        except Exception as exc:
+            raise ValueError(
+                f"'{path}' could not be loaded as weights for --arch {arch} ({exc}). "
+                "If it is a whole saved model, drop --arch and pass --unsafe-load."
+            )
         if isinstance(obj, Mapping):
             model.load_state_dict(obj)
         elif isinstance(obj, nn.Module):
             model = obj
-        return model.eval()
+        return model.eval(), None
 
-    # no arch: a state_dict loads with weights_only; a whole module needs the
-    # (less safe) full unpickle
+    # weights_only=True is the safe path: a state_dict loads fine. A whole saved
+    # module fails it (full unpickle = arbitrary code), so that needs explicit
+    # opt-in rather than a silent fallback.
     try:
         obj = torch.load(path, map_location="cpu", weights_only=True)
-    except Exception:
+    except Exception as exc:
+        if not unsafe_load:
+            raise ValueError(
+                f"'{path}' is not a plain state_dict ({exc}). If it is a whole "
+                "saved model (torch.save(model, ...)), pass --unsafe-load to "
+                "allow full deserialization (only for files you trust); if it "
+                "holds only weights, pass --arch <name>."
+            )
         obj = torch.load(path, map_location="cpu", weights_only=False)
     if isinstance(obj, nn.Module):
-        return obj.eval()
+        return obj.eval(), None
     if isinstance(obj, Mapping):
-        raise ValueError(
-            "this .pt holds only weights (a state_dict) — the architecture and "
-            "skip connections live in the model code, not the weights. Re-run "
-            "with --arch <name> (e.g. resnet50) to rebuild it via torchvision, "
-            "or pass a whole saved model."
-        )
+        return None, obj
     raise ValueError(f"unsupported .pt contents: {type(obj).__name__}.")
+
+
+def _first_tensor(out):
+    """First tensor in a module output (LSTM/attention/HF heads return tuples)."""
+    import torch
+    if isinstance(out, torch.Tensor):
+        return out
+    if isinstance(out, (tuple, list)):
+        for item in out:
+            found = _first_tensor(item)
+            if found is not None:
+                return found
+    return None
 
 
 def _collect_shapes(model, example) -> dict[int, tuple[int, ...]]:
@@ -50,13 +77,20 @@ def _collect_shapes(model, example) -> dict[int, tuple[int, ...]]:
     shapes: dict[int, tuple[int, ...]] = {}
 
     def hook(module, _inp, out):
-        if isinstance(out, torch.Tensor):
-            shapes[id(module)] = tuple(out.shape)
+        tensor = _first_tensor(out)
+        if tensor is not None:
+            shapes[id(module)] = tuple(tensor.shape)
 
     handles = [m.register_forward_hook(hook) for m in model.modules()]
     try:
         with torch.no_grad():
             model(example)
+    except (TypeError, RuntimeError) as exc:
+        raise ValueError(
+            f"the example forward pass failed ({exc}). Check --input matches "
+            "the model's expected shape; models needing multiple inputs are "
+            "not supported yet."
+        )
     finally:
         for h in handles:
             h.remove()
@@ -67,7 +101,8 @@ def _chw(shape: tuple[int, ...] | None) -> tuple[int | None, int | None]:
     if not shape:
         return None, None
     channels = shape[1] if len(shape) >= 2 else None
-    resolution = shape[2] if len(shape) >= 4 else None
+    # smaller spatial side bounds the feature map (non-square inputs)
+    resolution = min(shape[2], shape[3]) if len(shape) >= 4 else None
     return channels, resolution
 
 
@@ -101,13 +136,13 @@ class _Walker:
         self.layers: list[dict] = []
         self._counts: dict[str, int] = {}
 
-    def _name(self, kind: str) -> str:
+    def _next_name(self, kind: str) -> str:
         self._counts[kind] = self._counts.get(kind, 0) + 1
         return f"{kind}{self._counts[kind]}"
 
     def _add(self, type_: str, kind: str, shape, caption: str, **extra) -> None:
         channels, resolution = _chw(shape)
-        layer = {"type": type_, "name": self._name(kind), "caption": caption}
+        layer = {"type": type_, "name": self._next_name(kind), "caption": caption}
         if channels is not None:
             layer["channels"] = channels
         if resolution and resolution > 1:
@@ -145,21 +180,37 @@ class _Walker:
                 self._add("block", "block", shape, type(child).__name__, label_pos="none")
 
 
-def _to_yaml(name: str, in_res: int, layers: list[dict]) -> str:
+def _skeleton_from_state_dict(state_dict) -> list[dict]:
+    """A linear conv/fc skeleton inferred from weight tensor ranks (no shapes)."""
+    layers: list[dict] = []
+    counts: dict[str, int] = {}
+
+    def next_name(kind: str) -> str:
+        counts[kind] = counts.get(kind, 0) + 1
+        return f"{kind}{counts[kind]}"
+
+    for key, tensor in state_dict.items():
+        if not key.endswith(".weight"):
+            continue
+        ndim = tensor.dim()
+        if ndim == 2:  # Linear: (out, in)
+            layers.append({"type": "fc", "name": next_name("fc"),
+                           "channels": int(tensor.shape[0]), "caption": "fc"})
+        elif ndim >= 3:  # Conv: (out, in, *kernel)
+            layers.append({"type": "conv", "name": next_name("conv"),
+                           "channels": int(tensor.shape[0]), "caption": "conv"})
+        # 1D weights are norm/bn scales -> folded out
+    return layers
+
+
+def _to_yaml(name: str, layers: list[dict], sizing: dict) -> str:
     def fmt(value) -> str:
         text = str(value)
         return f'"{text}"' if (" " in text or ":" in text) else text
 
-    lines = [
-        f"name: {name}",
-        "layout: sequential",
-        "sizing:",
-        "  mode: spatial",
-        f"  ref_resolution: {in_res}",
-        "  ref_size: 40",
-        "  ref_channels: 64",
-        "layers:",
-    ]
+    lines = [f"name: {name}", "layout: sequential", "sizing:"]
+    lines += [f"  {key}: {value}" for key, value in sizing.items()]
+    lines.append("layers:")
     order = ["type", "name", "channels", "resolution", "caption", "label_pos"]
     for layer in layers:
         parts = [f"{k}: {fmt(layer[k])}" for k in order if k in layer]
@@ -168,24 +219,44 @@ def _to_yaml(name: str, in_res: int, layers: list[dict]) -> str:
 
 
 def config_from_torch(path: str | Path, input_shape: tuple[int, ...],
-                      arch: str | None = None, name: str | None = None) -> str:
+                      arch: str | None = None, name: str | None = None,
+                      unsafe_load: bool = False) -> str:
     """Build an apnn YAML config from a PyTorch model (.pt)."""
     import torch
 
-    model = _load_model(path, arch)
+    module, state_dict = _load_pt(path, arch, unsafe_load=unsafe_load)
+    diagram_name = name or (arch or Path(path).stem)
+    in_channels, in_res = _chw(input_shape)
+
+    if module is None:  # bare state_dict, no --arch -> linear skeleton
+        log.info("'%s' holds only weights; building a linear skeleton from weight "
+                 "shapes (pass --arch <name> for a torchvision model to get a "
+                 "shape-accurate diagram).", path)
+        layers = _skeleton_from_state_dict(state_dict)
+        if not layers:
+            raise ValueError("no Linear/Conv weights found to build a skeleton.")
+        layers.insert(0, {"type": "input", "name": "input", "caption": "input",
+                          **({"channels": in_channels} if in_channels else {})})
+        sizing = {"mode": "units", "ref_channels": 64, "ref_size": 28, "min_size": 10}
+        return _to_yaml(diagram_name, layers, sizing)
+
+    is_spatial = len(input_shape) >= 4  # NCHW(D) -> spatial; sequences/tabular -> units
     example = torch.randn(*input_shape)
-    shapes = _collect_shapes(model, example)
+    shapes = _collect_shapes(module, example)
 
     walker = _Walker(shapes)
-    in_channels, in_res = _chw(input_shape)
     walker.layers.append({
-        "type": "input", "name": "input", "caption": "image",
+        "type": "input", "name": "input", "caption": "image" if is_spatial else "input",
         **({"channels": in_channels} if in_channels else {}),
         **({"resolution": in_res} if in_res and in_res > 1 else {}),
     })
-    walker.walk(model)
+    walker.walk(module)
 
     if len(walker.layers) <= 1:
         raise ValueError("could not extract any layers from the model.")
-    diagram_name = name or (arch or Path(path).stem)
-    return _to_yaml(diagram_name, in_res or 224, walker.layers)
+    if is_spatial:
+        sizing = {"mode": "spatial", "ref_resolution": in_res or 224,
+                  "ref_size": 40, "ref_channels": 64}
+    else:
+        sizing = {"mode": "units", "ref_channels": 64, "ref_size": 28, "min_size": 10}
+    return _to_yaml(diagram_name, walker.layers, sizing)

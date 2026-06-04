@@ -16,6 +16,10 @@ _FONT_REF_WIDTH = 1150.0
 _FONT_SCALE_MIN = 0.7
 _FONT_SCALE_MAX = 1.8
 
+# guard against a hung LaTeX/poppler call wedging a pipeline
+_RENDER_TIMEOUT = 120  # seconds for pdflatex / pdftoppm
+_INFO_TIMEOUT = 30     # seconds for the best-effort pdfinfo measurement
+
 
 def styles_dir() -> Path:
     with as_file(files("apnn") / "styles") as path:
@@ -35,17 +39,27 @@ def _pdf_width(pdf_path: Path) -> float | None:
     if pdfinfo is None:
         log.debug("pdfinfo not found; skipping auto font scaling")
         return None
-    out = subprocess.run([pdfinfo, str(pdf_path)], capture_output=True, text=True)
+    try:
+        out = subprocess.run([pdfinfo, str(pdf_path)], capture_output=True,
+                             text=True, timeout=_INFO_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        log.warning("pdfinfo timed out; skipping auto font scaling")
+        return None
     m = re.search(r"Page size:\s*([\d.]+)\s*x", out.stdout)
     return float(m.group(1)) if m else None
 
 
 def _compile_pdf(pdflatex: str, out_dir: Path, name: str, tex_path: Path) -> Path:
-    result = subprocess.run(
-        # "./" keeps a name starting with '-' from being read as an option
-        [pdflatex, "-interaction=nonstopmode", "-halt-on-error", f"./{name}.tex"],
-        cwd=out_dir, capture_output=True, text=True,
-    )
+    try:
+        result = subprocess.run(
+            # "./" keeps a name starting with '-' from being read as an option
+            [pdflatex, "-interaction=nonstopmode", "-halt-on-error", f"./{name}.tex"],
+            cwd=out_dir, capture_output=True, text=True, timeout=_RENDER_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            f"pdflatex timed out after {_RENDER_TIMEOUT}s for {tex_path}."
+        )
     pdf_path = out_dir / f"{name}.pdf"
     if result.returncode != 0 or not pdf_path.exists():
         log.error("pdflatex failed:\n%s", result.stdout[-2000:])
@@ -95,10 +109,16 @@ def render(diagram: "Diagram", out_base: str | Path, fmt: str = "pdf", dpi: int 
         "pdftoppm",
         "Install poppler (macOS: 'brew install poppler', Ubuntu: 'sudo apt-get install poppler-utils').",
     )
-    subprocess.run(
-        [pdftoppm, "-png", "-r", str(dpi), "-singlefile", f"./{name}.pdf", f"./{name}"],
-        cwd=out_dir, check=True, capture_output=True, text=True,
-    )
+    try:
+        result = subprocess.run(
+            [pdftoppm, "-png", "-r", str(dpi), "-singlefile", f"./{name}.pdf", f"./{name}"],
+            cwd=out_dir, capture_output=True, text=True, timeout=_RENDER_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"pdftoppm timed out after {_RENDER_TIMEOUT}s for {pdf_path}.")
     png_path = out_dir / f"{name}.png"
+    if result.returncode != 0 or not png_path.exists():
+        log.error("pdftoppm failed:\n%s", result.stderr[-2000:])
+        raise RuntimeError(f"pdftoppm failed for {pdf_path}: {result.stderr.strip()[-200:]}")
     log.info("wrote %s", png_path)
     return png_path
