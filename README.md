@@ -1,5 +1,7 @@
 # AutoPlotNeuralNet
 
+[![CI](https://github.com/intervall-ludger/AutoPlotNeuralNet/actions/workflows/ci.yml/badge.svg)](https://github.com/intervall-ludger/AutoPlotNeuralNet/actions/workflows/ci.yml)
+
 > **Still in progress** — the diagram design is functional but still being
 > refined; expect layout and styling to keep improving.
 
@@ -286,6 +288,18 @@ render(diagram, "examples/ffn", fmt="png")
 Logging uses the standard `logging` module; pass `-v` to the CLI for `DEBUG`
 output, otherwise it logs at `INFO`. When using the Python API directly, call
 `logging.basicConfig()` yourself to see log output.
+
+## Development
+
+```bash
+uv sync --extra test
+uv run pytest
+```
+
+The suite is LaTeX-free: it exercises `to_tex()`, the layouts, the node types,
+config validation and the PyTorch importer (the torch tests skip automatically
+when the optional `torch` extra is not installed). CI runs it on Python
+3.10–3.12 and validates every bundled template.
 
 ## Credits
 
