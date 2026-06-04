@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..nodes import Node
-from .base import Connection, Layout, clearing_gap
+from .base import Connection, Layout, caption_gap, clearing_gap
 
 
 class SequentialLayout(Layout):
@@ -12,7 +12,7 @@ class SequentialLayout(Layout):
     # fuse narrow nodes (pooling) flush onto the preceding box, with no edge
     flush_narrow: bool = False
 
-    def compute(self, nodes: list[Node]) -> list[Connection]:
+    def compute(self, nodes: list[Node], font_scale: float = 1.0) -> list[Connection]:
         connections: list[Connection] = []
         prev: Node | None = None
         for node in nodes:
@@ -24,7 +24,7 @@ class SequentialLayout(Layout):
                 node._to = f"({prev.name}-east)"
             else:
                 base = self.pool_spacing if node.is_narrow else self.spacing
-                gap = clearing_gap(prev, base)
+                gap = max(clearing_gap(prev, base), caption_gap(prev, node, font_scale))
                 node._offset = f"({gap},0,0)"
                 node._to = f"({prev.name}-east)"
                 connections.append(Connection(prev.name, node.name))

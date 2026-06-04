@@ -122,14 +122,15 @@ class Diagram:
         return max(self.nodes, key=lambda n: n._height).name
 
     def _auto_legend(self) -> list[dict]:
+        # one entry per label: a colour override (e.g. a blue 'conv' self-attn
+        # block) must not spawn a second "Convolution" row
         items: list[dict] = []
-        seen: set[tuple] = set()
+        seen: set[str] = set()
         for node in self.nodes:
             item = node.legend_item(self._theme)
-            key = (item["fill"], item["label"])
-            if key in seen:
+            if item["label"] in seen:
                 continue
-            seen.add(key)
+            seen.add(item["label"])
             items.append(item)
         return items
 
@@ -162,7 +163,7 @@ class Diagram:
     def to_tex(self, styles_path: str = "styles/", font_scale: float | None = None) -> str:
         self._apply_sizing()
         self._check_references()
-        auto_connections = self._layout.compute(self.nodes)
+        auto_connections = self._layout.compute(self.nodes, self.resolve_font_scale(font_scale))
 
         parts = [document.to_head(styles_path, self.resolve_font_scale(font_scale)),
                  self._theme.colors_tex(), document.to_begin()]

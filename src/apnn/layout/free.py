@@ -9,7 +9,7 @@ class FreeLayout(Layout):
 
     shared_caption_baseline: bool = False
 
-    def compute(self, nodes: list[Node]) -> list[Connection]:
+    def compute(self, nodes: list[Node], font_scale: float = 1.0) -> list[Connection]:
         for node in nodes:
             x = node.x if node.x is not None else 0.0
             y = node.y if node.y is not None else 0.0

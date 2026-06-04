@@ -25,7 +25,7 @@ class EncoderDecoderLayout(Layout):
     pool_spacing: float = 0.6
     skip_margin: float = 1.0   # gap between an arc and the tallest box it crosses
 
-    def compute(self, nodes: list[Node]) -> list[Connection]:
+    def compute(self, nodes: list[Node], font_scale: float = 1.0) -> list[Connection]:
         connections: list[Connection] = []
 
         first_up = next((i for i, n in enumerate(nodes) if isinstance(n, Upsample)), None)

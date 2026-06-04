@@ -22,7 +22,7 @@ class PyramidLayout(Layout):
     col_spacing: float = 7.0
     level_step: float = 1.5   # vertical gap between stacked plates
 
-    def compute(self, nodes: list[Node]) -> list[Connection]:
+    def compute(self, nodes: list[Node], font_scale: float = 1.0) -> list[Connection]:
         levels = sorted({_res_key(n) for n in nodes}, reverse=True)  # largest = bottom
         y_of = {r: i * self.level_step for i, r in enumerate(levels)}
 
