@@ -14,13 +14,12 @@ config.yaml ┘
 
 ## From a `.pt` to a plot in one command
 
-Have a trained model? Two commands, no config to write:
+Have a trained model? Install, then one command — no config to write:
 
 ```bash
-pip install 'autoplotneuralnet[torch]'
+pip install 'autoplotneuralnet[torch] @ git+https://github.com/intervall-ludger/AutoPlotNeuralNet.git'
 
-apnn from-torch resnet50.pt --arch resnet50 -o resnet50.yaml
-apnn render resnet50.yaml --to png
+apnn from-torch resnet50.pt --arch resnet50 --to png
 ```
 
 ![ResNet-50 (auto-imported)](docs/gallery/resnet50_auto.png)
@@ -73,9 +72,18 @@ Run `uv run apnn render src/apnn/templates/<name>.yaml -o out/<name> --to png`.
 
 ## Install
 
+There is no PyPI release yet — install straight from GitHub:
+
 ```bash
-uv sync
+# base tool
+pip install 'git+https://github.com/intervall-ludger/AutoPlotNeuralNet.git'
+
+# with the PyTorch importer (apnn from-torch)
+pip install 'autoplotneuralnet[torch] @ git+https://github.com/intervall-ludger/AutoPlotNeuralNet.git'
 ```
+
+Working from a clone instead? `uv sync` sets up the dev environment and the
+`uv run apnn ...` commands used throughout this README.
 
 ## Usage
 
@@ -169,31 +177,37 @@ Each layer may override `color`, `band_color`, `opacity`, and the box geometry
 
 `apnn from-torch` reads a saved `.pt`, runs one example forward pass, records
 every layer's output shape via forward hooks, and writes a config — no manual
-work (needs the optional `torch` extra):
+work (needs the optional `torch` extra, see [Install](#install)).
+
+How the `.pt` was saved decides how much structure is recovered:
 
 ```bash
-pip install 'autoplotneuralnet[torch]'   # or: uv pip install 'autoplotneuralnet[torch]'
+# (a) a whole saved model — torch.save(model, "model.pt") — carries its own graph.
+#     Loading it is a full unpickle, so opt in with --unsafe-load (trusted files only):
+apnn from-torch model.pt --input 1,3,224,224 --unsafe-load --to png
+
+# (b) only weights — torch.save(model.state_dict(), ...), the usual download.
+#     A torchvision arch rebuilds the full graph (best result):
+apnn from-torch resnet50.pt --arch resnet50 --to png
+#     Without --arch it still works: a linear conv/fc skeleton is read straight
+#     off the weight shapes (no shapes/skips, but a correct layer sequence):
+apnn from-torch my_custom_net.pt --to png
 ```
 
-How the `.pt` was saved decides whether you need `--arch`:
-
-```bash
-# (a) a whole saved model — torch.save(model, "model.pt") — carries its own graph
-apnn from-torch model.pt --input 1,3,224,224 -o model.yaml
-
-# (b) only weights — torch.save(model.state_dict(), ...), the usual download —
-#     has no graph, so rebuild it from a torchvision architecture
-apnn from-torch resnet50.pt --arch resnet50 -o resnet50.yaml
-
-apnn render resnet50.yaml --to png
-```
+`--to {tex,pdf,png}` renders in the same step; omit it to just write the YAML.
 
 | flag | meaning | default |
 |------|---------|---------|
 | `--input` | example input shape, comma-separated | `1,3,224,224` |
 | `--arch` | torchvision arch to rebuild a state_dict (case b) | — |
+| `--unsafe-load` | allow full unpickle of a whole saved model (case a, trusted files) | off |
+| `--to` | also render the config (`tex`/`pdf`/`png`) | — (YAML only) |
+| `--dpi` | PNG resolution when `--to png` | `150` |
 | `--name` | diagram name | arch / file stem |
 | `-o/--out` | output YAML path | `<model>.yaml` |
+
+Non-image inputs are handled too: a 2-D/3-D `--input` (tabular, sequences)
+switches sizing to neuron-count mode instead of spatial.
 
 Modules map to nodes (Conv→`conv`, transposed conv→`deconv`, pooling→`pool`,
 Linear→`fc`); activations and norm layers are folded out, and repeated identical
@@ -202,21 +216,18 @@ stages (e.g. a ResNet `layer1`) collapse to one `block` captioned `layer1 x3`
 
 **Limits — what the auto path does *not* solve:**
 
-- A **state_dict has no topology**. A *custom* (non-torchvision) model therefore
-  can't be rebuilt automatically — `from-torch` says so clearly instead of
-  guessing. Writing the config by hand is easy: read the sizes off the weight
-  shapes. A small MLP whose `state_dict` is `network.0: (10,12)`,
-  `network.2: (10,10)`, `network.4: (2,10)` is just:
+- A **state_dict has no topology**. Without `--arch` you get a *linear skeleton*:
+  the layer sequence and channel counts are read off the weight shapes (2-D →
+  `fc`, 4-D → `conv`), but there are no spatial sizes and no skip connections.
+  It's a real config you can render immediately and refine by hand — the
+  generated YAML is plain layers, e.g. for a small MLP:
 
   ```yaml
-  name: model
-  layout: sequential
-  sizing: {mode: units, ref_channels: 12, ref_size: 28, min_size: 10}
   layers:
-    - {type: input,   name: in,  channels: 12, caption: Input}
-    - {type: fc,      name: h1,  channels: 10}
-    - {type: fc,      name: h2,  channels: 10}
-    - {type: softmax, name: out, channels: 2,  caption: Output}
+    - {type: input, name: input, channels: 12, caption: input}
+    - {type: fc,    name: fc1,   channels: 10, caption: fc}
+    - {type: fc,    name: fc2,   channels: 10, caption: fc}
+    - {type: fc,    name: fc3,   channels: 2,  caption: fc}
   ```
 
 - The stage view **serialises parallel branches** (Inception, SqueezeNet Fire),
