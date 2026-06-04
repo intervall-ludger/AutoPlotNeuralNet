@@ -16,11 +16,12 @@
 \providecommand{\fntmd}{\fontsize{25pt}{30.0pt}\selectfont}
 \providecommand{\fntsm}{\fontsize{20pt}{24.0pt}\selectfont}
 
-% default edge color; a theme may override via \def\edgecolor{...}
+% default edge colors; a theme may override via \def\edgecolor / \copyedgecolor
 \providecommand{\edgecolor}{rgb:blue,4;red,1;green,4;black,3}
+\providecommand{\copyedgecolor}{rgb:blue,5;red,1;green,1;black,2}
 \newcommand{\midarrow}{\tikz \draw[-Stealth,line width=0.8mm,draw=\edgecolor] (-0.3,0) -- ++(0.3,0);}
 
 % edge styles (available to hand-written .tex, not just generated documents)
 \tikzstyle{connection}=[ultra thick,every node/.style={sloped,allow upside down},draw=\edgecolor,opacity=0.7]
-\tikzstyle{copyconnection}=[very thick,every node/.style={sloped,allow upside down},draw={rgb:blue,5;red,1;green,1;black,2},opacity=0.85]
-\providecommand{\copymidarrow}{\tikz \draw[-Stealth,line width=1.0mm,draw={rgb:blue,5;red,1;green,1;black,2}] (-0.3,0) -- ++(0.3,0);}
+\tikzstyle{copyconnection}=[very thick,every node/.style={sloped,allow upside down},draw=\copyedgecolor,opacity=0.85]
+\providecommand{\copymidarrow}{\tikz \draw[-Stealth,line width=1.0mm,draw=\copyedgecolor] (-0.3,0) -- ++(0.3,0);}

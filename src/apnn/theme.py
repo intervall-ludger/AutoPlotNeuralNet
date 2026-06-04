@@ -17,9 +17,11 @@ class Theme:
     input_layer: str = r"rgb:magenta,2;blue,1;white,8"
     output_layer: str = r"rgb:green,3;blue,1;white,6"
     edge: str = r"rgb:blue,4;red,1;green,4;black,3"
+    skip_edge: str = r"rgb:blue,5;red,1;green,1;black,2"
 
     def colors_tex(self) -> str:
-        return r"\def\edgecolor{" + self.edge + "}\n"
+        return (r"\def\edgecolor{" + self.edge + "}\n"
+                r"\def\copyedgecolor{" + self.skip_edge + "}\n")
 
 
 THEMES: dict[str, Theme] = {

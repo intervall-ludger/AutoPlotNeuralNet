@@ -39,6 +39,12 @@
         (\xb, \y/2, \z/2) -- (\xa, \y/2, \z/2) -- (\xa,-\y/2, \z/2) -- (\xb,-\y/2, \z/2) -- cycle   % front
         (\xb, \y/2, \z/2) -- (\xa, \y/2, \z/2) -- (\xa, \y/2,-\z/2) -- (\xb, \y/2,-\z/2) -- cycle   % top
         (\xb, \y/2, \z/2) -- (\xb, \y/2,-\z/2) -- (\xb,-\y/2,-\z/2) -- (\xb,-\y/2, \z/2) -- cycle;  % right
+    % face shading (light from upper-left): top faces a touch, right face more
+    \fill[black, opacity=0.10]
+        (\xa, \y/2, \z/2) -- (0, \y/2, \z/2) -- (0, \y/2,-\z/2) -- (\xa, \y/2,-\z/2) -- cycle    % top (left seg)
+        (\xb, \y/2, \z/2) -- (\xa, \y/2, \z/2) -- (\xa, \y/2,-\z/2) -- (\xb, \y/2,-\z/2) -- cycle; % top (band)
+    \fill[black, opacity=0.22]
+        (\xb, \y/2, \z/2) -- (\xb, \y/2,-\z/2) -- (\xb,-\y/2,-\z/2) -- (\xb,-\y/2, \z/2) -- cycle; % right
     % hidden edges
     \draw[draw=black!35, densely dashed, opacity=0.6]
         (\xb,-\y/2,-\z/2) -- (0,-\y/2,-\z/2)

@@ -41,6 +41,9 @@
         (d) -- (a) -- (b) -- (c) -- cycle   % front
         (d) -- (a) -- (h) -- (e) -- cycle   % top
         (d) -- (e) -- (f) -- (c) -- cycle;  % right
+    % face shading (light from upper-left): top a touch, right more
+    \fill[black, opacity=0.10] (d) -- (a) -- (h) -- (e) -- cycle;
+    \fill[black, opacity=0.22] (d) -- (e) -- (f) -- (c) -- cycle;
     \draw[draw=black!35, densely dashed, opacity=0.6]
         (f) -- (g) (b) -- (g) (h) -- (g);
 
