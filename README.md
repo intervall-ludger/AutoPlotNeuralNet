@@ -3,12 +3,32 @@
 > **Still in progress** — the diagram design is functional but still being
 > refined; expect layout and styling to keep improving.
 
-Config-driven TikZ diagrams of neural networks. Write a small YAML file, get a
-`.tex` / PDF / PNG of your architecture — no manual TikZ.
+Clean TikZ diagrams of neural networks — no manual TikZ. Point it at a trained
+PyTorch model and get a plot, or write a small YAML config by hand.
 
 ```
-config (YAML)  ->  apnn  ->  .tex  ->  PDF / PNG
+model.pt  ─┐
+           ├─►  apnn  ─►  .tex  ─►  PDF / PNG
+config.yaml ┘
 ```
+
+## From a `.pt` to a plot in one command
+
+Have a trained model? Two commands, no config to write:
+
+```bash
+pip install 'autoplotneuralnet[torch]'
+
+apnn from-torch resnet50.pt --arch resnet50 -o resnet50.yaml
+apnn render resnet50.yaml --to png
+```
+
+![ResNet-50 (auto-imported)](docs/gallery/resnet50_auto.png)
+
+That diagram was generated straight from `resnet50.pt` — apnn ran one forward
+pass, read each layer's output shape, and laid the network out for you. The four
+residual stages collapsed to `layer1 x3 … layer4 x3` automatically. See
+[From a PyTorch model](#from-a-pytorch-model) for the details and limits.
 
 ## Gallery
 
@@ -147,30 +167,61 @@ Each layer may override `color`, `band_color`, `opacity`, and the box geometry
 
 ## From a PyTorch model
 
-Turn a saved `.pt` into a config automatically (needs the optional `torch` extra):
+`apnn from-torch` reads a saved `.pt`, runs one example forward pass, records
+every layer's output shape via forward hooks, and writes a config — no manual
+work (needs the optional `torch` extra):
 
 ```bash
 pip install 'autoplotneuralnet[torch]'   # or: uv pip install 'autoplotneuralnet[torch]'
-
-# a whole saved model (torch.save(model, ...)) — no --arch needed
-uv run apnn from-torch model.pt --input 1,3,224,224 -o model.yaml
-
-# only weights (a state_dict, the usual download) — rebuild the graph via torchvision
-uv run apnn from-torch resnet50.pt --arch resnet50 -o resnet50.yaml
-
-uv run apnn render model.yaml --to png
 ```
 
-It runs one example forward pass, reads each layer's output shape via hooks, and
-maps modules to nodes (Conv→`conv`, pooling→`pool`, Linear→`fc`, …); activations
-and norm layers are folded out, and repeated identical stages (e.g. a ResNet
-`layer1`) collapse to a single `block` captioned `layer1 x2`.
+How the `.pt` was saved decides whether you need `--arch`:
 
-Limits: a state_dict holds no topology, so a custom (non-torchvision) model needs
-its config written by hand — read the layer sizes off the weight shapes (it's a
-clear error message, not a crash). The stage view also serialises parallel
-branches (Inception, SqueezeNet Fire), so branchy nets lose their split/merge
-structure. Straight backbones (ResNet, VGG, AlexNet) come out exact.
+```bash
+# (a) a whole saved model — torch.save(model, "model.pt") — carries its own graph
+apnn from-torch model.pt --input 1,3,224,224 -o model.yaml
+
+# (b) only weights — torch.save(model.state_dict(), ...), the usual download —
+#     has no graph, so rebuild it from a torchvision architecture
+apnn from-torch resnet50.pt --arch resnet50 -o resnet50.yaml
+
+apnn render resnet50.yaml --to png
+```
+
+| flag | meaning | default |
+|------|---------|---------|
+| `--input` | example input shape, comma-separated | `1,3,224,224` |
+| `--arch` | torchvision arch to rebuild a state_dict (case b) | — |
+| `--name` | diagram name | arch / file stem |
+| `-o/--out` | output YAML path | `<model>.yaml` |
+
+Modules map to nodes (Conv→`conv`, transposed conv→`deconv`, pooling→`pool`,
+Linear→`fc`); activations and norm layers are folded out, and repeated identical
+stages (e.g. a ResNet `layer1`) collapse to one `block` captioned `layer1 x3`
+(the ResNet-50 plot at the top of this README was produced exactly this way).
+
+**Limits — what the auto path does *not* solve:**
+
+- A **state_dict has no topology**. A *custom* (non-torchvision) model therefore
+  can't be rebuilt automatically — `from-torch` says so clearly instead of
+  guessing. Writing the config by hand is easy: read the sizes off the weight
+  shapes. A small MLP whose `state_dict` is `network.0: (10,12)`,
+  `network.2: (10,10)`, `network.4: (2,10)` is just:
+
+  ```yaml
+  name: model
+  layout: sequential
+  sizing: {mode: units, ref_channels: 12, ref_size: 28, min_size: 10}
+  layers:
+    - {type: input,   name: in,  channels: 12, caption: Input}
+    - {type: fc,      name: h1,  channels: 10}
+    - {type: fc,      name: h2,  channels: 10}
+    - {type: softmax, name: out, channels: 2,  caption: Output}
+  ```
+
+- The stage view **serialises parallel branches** (Inception, SqueezeNet Fire),
+  so branchy nets lose their split/merge structure. Straight backbones
+  (ResNet, VGG, AlexNet) come out exact.
 
 ## Hand-written `.tex` (advanced)
 
