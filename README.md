@@ -145,6 +145,33 @@ Each layer may override `color`, `band_color`, `opacity`, and the box geometry
 (`height`, `width`, `depth`); otherwise geometry is derived from `resolution` and
 `channels` via the `sizing` config.
 
+## From a PyTorch model
+
+Turn a saved `.pt` into a config automatically (needs the optional `torch` extra):
+
+```bash
+pip install 'autoplotneuralnet[torch]'   # or: uv pip install 'autoplotneuralnet[torch]'
+
+# a whole saved model (torch.save(model, ...)) — no --arch needed
+uv run apnn from-torch model.pt --input 1,3,224,224 -o model.yaml
+
+# only weights (a state_dict, the usual download) — rebuild the graph via torchvision
+uv run apnn from-torch resnet50.pt --arch resnet50 -o resnet50.yaml
+
+uv run apnn render model.yaml --to png
+```
+
+It runs one example forward pass, reads each layer's output shape via hooks, and
+maps modules to nodes (Conv→`conv`, pooling→`pool`, Linear→`fc`, …); activations
+and norm layers are folded out, and repeated identical stages (e.g. a ResNet
+`layer1`) collapse to a single `block` captioned `layer1 x2`.
+
+Limits: a state_dict holds no topology, so a custom (non-torchvision) model needs
+its config written by hand — read the layer sizes off the weight shapes (it's a
+clear error message, not a crash). The stage view also serialises parallel
+branches (Inception, SqueezeNet Fire), so branchy nets lose their split/merge
+structure. Straight backbones (ResNet, VGG, AlexNet) come out exact.
+
 ## Hand-written `.tex` (advanced)
 
 For topologies the config can't express, drop to raw TikZ while reusing apnn's

@@ -159,7 +159,7 @@ class Block(Node):
             width=self._width, height=self._height, depth=self._depth,
             opacity=self._opacity(), xlabel="", caption=" ",
         )
-        if self.caption.strip() and self.label_pos != "below":
+        if self.caption.strip() and self.label_pos in ("on", "right"):
             label = escape_text(self.caption)
             if self.label_pos == "right":
                 spec = r"[anchor=west, font=\fntsm] at ([xshift=4pt]" + self.name + "-east)"

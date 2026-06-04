@@ -87,7 +87,7 @@ class NodeConfig(BaseModel):
     width: float | None = None
     depth: float | None = None
     col: int = 0  # column index, used by 2D layouts (pyramid)
-    label_pos: Literal["on", "right", "below"] = "on"  # where a block's label sits
+    label_pos: Literal["on", "right", "below", "none"] = "on"  # where a block's label sits
     x: float | None = None  # explicit position for the 'free' layout (diagram units)
     y: float | None = None
 

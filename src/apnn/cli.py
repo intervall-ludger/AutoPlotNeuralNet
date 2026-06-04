@@ -179,5 +179,40 @@ def new(template: str) -> None:
     click.echo(_resolve_template(template).read_text())
 
 
+@main.command("from-torch")
+@click.argument("model", type=click.Path(exists=True, dir_okay=False))
+@click.option("-o", "--out", default=None, help="Output YAML path (default: <model>.yaml).")
+@click.option("--input", "input_shape", default="1,3,224,224", show_default=True,
+              help="Example input shape, comma-separated.")
+@click.option("--arch", default=None,
+              help="torchvision arch (e.g. resnet50) to rebuild a weights-only .pt.")
+@click.option("--name", default=None, help="Diagram name (default: arch or file stem).")
+def from_torch(model: str, out: str | None, input_shape: str,
+               arch: str | None, name: str | None) -> None:
+    """Build a config from a PyTorch MODEL (.pt). Needs the 'torch' extra."""
+    try:
+        shape = tuple(int(d) for d in input_shape.split(","))
+    except ValueError:
+        click.echo(f"Invalid --input '{input_shape}'; use e.g. 1,3,224,224.", err=True)
+        sys.exit(1)
+    try:
+        from .torch_import import config_from_torch
+        yaml_text = config_from_torch(model, shape, arch=arch, name=name)
+    except ImportError as exc:
+        click.echo(
+            f"PyTorch/torchvision required ({exc}). Install with: "
+            "pip install 'autoplotneuralnet[torch]' (or: pip install torch torchvision).",
+            err=True)
+        sys.exit(1)
+    except (ValueError, RuntimeError, FileNotFoundError) as exc:
+        click.echo(f"Could not import '{model}': {exc}", err=True)
+        sys.exit(1)
+
+    out_path = Path(out) if out else Path(model).with_suffix(".yaml")
+    out_path.write_text(yaml_text)
+    click.echo(f"Wrote {out_path}")
+    click.echo(f"Now render it:  apnn render {out_path} --to png")
+
+
 if __name__ == "__main__":
     main()
