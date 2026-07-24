@@ -283,6 +283,27 @@ diagram = Diagram.from_config(load_config("my_net.yaml"))
 render(diagram, "examples/ffn", fmt="png")
 ```
 
+### Custom node types and layouts
+
+Add your own without forking: subclass `Node` (implement `tikz` and
+`legend_item`) or `Layout` (implement `compute`), then register it so any config
+can refer to it by name:
+
+```python
+from apnn import Node, register_node
+
+class Star(Node):
+    def tikz(self, theme):
+        ...                                  # emit TikZ for this node
+    def legend_item(self, theme):
+        return {"fill": "red", "label": "Star"}
+
+register_node("star", Star)                  # now usable as `type: star`
+```
+
+`register_layout(name, cls)` works the same way for layouts. See `nodes.py` /
+`layout/base.py` for the method contracts and the named anchors a node exposes.
+
 ## Logging
 
 Logging uses the standard `logging` module; pass `-v` to the CLI for `DEBUG`

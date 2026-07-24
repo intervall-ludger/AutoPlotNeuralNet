@@ -291,3 +291,10 @@ NODE_TYPES: dict[str, type[Node]] = {
     "norm": Norm,
     "block": Block,
 }
+
+
+def register_node(name: str, node_cls: type[Node]) -> None:
+    """Register a custom node type so configs can use ``type: <name>``."""
+    if not (isinstance(node_cls, type) and issubclass(node_cls, Node)):
+        raise TypeError(f"register_node expects a Node subclass, got {node_cls!r}.")
+    NODE_TYPES[name] = node_cls
